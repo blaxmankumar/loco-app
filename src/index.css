@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+    color: #0e2347;
+    background-color: #f2f5fa;
+  }
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(14, 35, 71, 0.18);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 35, 71, 0.34);
+}
+
+/* Mobile phone inner scrollbar hidden for clean app feel */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Admin header sweeping navy & gold wave matching reference */
+.admin-header-bg {
+  background: linear-gradient(
+    95deg,
+    #f2f5fa 0%,
+    #f2f5fa 34%,
+    #1c3869 52%,
+    #11274d 78%,
+    #0c1e3e 100%
+  );
+  position: relative;
+}
+
+.admin-header-gold-strip {
+  background: linear-gradient(90deg, transparent 35%, #d4a13b 65%, #f3d27a 90%, #d4a13b 100%);
+}
+
+/* Mobile curved navy header with gold ribbon */
+.mobile-wave-header {
+  background: linear-gradient(155deg, #163366 0%, #0e2347 65%, #091833 100%);
+}
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeSlideUp 0.25s ease-out forwards;
+}
