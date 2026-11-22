@@ -89,8 +89,8 @@ export default function ExecutiveAdminView({
   const filteredContacts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return contacts.filter((c) => {
-      if (dirDivision !== 'All' && c.division !== dirDivision) return false;
-      if (dirLobby !== 'All' && c.lobby !== dirLobby) return false;
+      if (dirDivision !== 'All' && !(c.division || '').toLowerCase().includes(dirDivision.toLowerCase())) return false;
+      if (dirLobby !== 'All' && (c.lobby || '') !== dirLobby && !dirLobby.toLowerCase().includes(`(${(c.station || '').toLowerCase()})`)) return false;
       if (dirRole !== 'All' && c.role !== dirRole) return false;
       if (!q) return true;
       return `${c.name} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
