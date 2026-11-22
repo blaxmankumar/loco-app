@@ -1,0 +1,10 @@
+{
+  "appId": "com.secr.loco",
+  "appName": "LOCO",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#0E2347",
+    "allowMixedContent": true
+  }
+}
