@@ -207,13 +207,7 @@ const LAST_NAMES = [
 
 function buildFullSecrContacts() {
   const list = [];
-  // 4 Loco Pilots + 4 Assistant Loco Pilots + 2 Train Managers + 2 Station Controllers = 12 crew per lobby (324 total!)
-  const rolePlan = [
-    { role: 'Loco Pilot', prefix: 'LP', count: 4 },
-    { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 4 },
-    { role: 'Train Manager', prefix: 'TM', count: 2 },
-    { role: 'Station Controller', prefix: 'SC', count: 2 },
-  ];
+  const majorLobbies = new Set(['BSP', 'R', 'DURG', 'NITR', 'KRBA', 'RIG', 'KHS', 'USL', 'G']);
   let lobbyIdx = 0;
   let seq = 0;
 
@@ -222,17 +216,30 @@ function buildFullSecrContacts() {
       const m = lobbyLabel.match(/\(([^)]+)\)/);
       const code = m ? m[1] : 'BSP';
       const basePhone = LOBBY_OFFICIAL_PHONES[code] || '9752441439';
+      const isMajor = majorLobbies.has(code);
+      const rolePlan = isMajor
+        ? [
+            { role: 'Loco Pilot', prefix: 'LP', count: 15 },
+            { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 15 },
+            { role: 'Train Manager', prefix: 'TM', count: 6 },
+            { role: 'Station Controller', prefix: 'SC', count: 4 },
+          ]
+        : [
+            { role: 'Loco Pilot', prefix: 'LP', count: 8 },
+            { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 8 },
+            { role: 'Train Manager', prefix: 'TM', count: 4 },
+            { role: 'Station Controller', prefix: 'SC', count: 3 },
+          ];
 
       rolePlan.forEach(({ role, prefix, count }) => {
         for (let k = 0; k < count; k += 1) {
-          const isFemale = role === 'Station Controller' && k === 1;
+          const isFemale = role === 'Station Controller' && k % 2 === 1;
           const firstName = isFemale
-            ? FIRST_NAMES_F[(lobbyIdx + seq) % FIRST_NAMES_F.length]
-            : FIRST_NAMES_M[(seq * 7 + lobbyIdx * 3 + k) % FIRST_NAMES_M.length];
+            ? FIRST_NAMES_F[(lobbyIdx + seq + k) % FIRST_NAMES_F.length]
+            : FIRST_NAMES_M[(seq * 7 + lobbyIdx * 3 + k * 5) % FIRST_NAMES_M.length];
           const lastName = LAST_NAMES[(seq * 5 + lobbyIdx * 2 + k * 3) % LAST_NAMES.length];
           const name = `${firstName} ${lastName}`;
 
-          // First entry in each role keeps exact official lobby number; additional crew get realistic 10-digit SECR mobile numbers
           const phone =
             k === 0
               ? basePhone
