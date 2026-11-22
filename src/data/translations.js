@@ -24,7 +24,7 @@ export const TRANSLATIONS = {
     // Headers
     dashSub: 'Operations, Users & Communication Overview',
     trackSub: 'Live Driver GPS Telemetry, Station Geofencing & Corridor Alerts',
-    dirSub: 'Chhattisgarh districts, station lobbies & contact photos',
+    dirSub: 'Railway divisions, station lobbies & contact photos',
     noticesSub: 'Publish real-time circulars and duty roster announcements',
     docsSub: 'Role-based circular sharing, safety PDFs & site photos',
     searchPlaceholder: 'Search users, notices, documents...',
@@ -119,7 +119,7 @@ export const TRANSLATIONS = {
     // Headers
     dashSub: 'संचालन, स्टाफ यूज़र्स और कम्युनिकेशन का लाइव ओवरव्यू',
     trackSub: 'लाइव ड्राइवर GPS ट्रैकिंग, स्टेशन जियोफेंसिंग और रूट अलर्ट्स',
-    dirSub: 'छत्तीसगढ़ के 28 जिले, स्टेशन लॉबी और कॉन्टैक्ट फोटो डायरेक्टरी',
+    dirSub: 'सभी रेलवे डिवीज़न, स्टेशन लॉबी और कॉन्टैक्ट फोटो डायरेक्टरी',
     noticesSub: 'ऑफिशियल सर्कुलर और ड्यूटी रोस्टर तुरंत ब्रॉडकास्ट करें',
     docsSub: 'रोल-आधारित सुरक्षित सर्कुलर, सेफ्टी PDF और साइट फोटो शेयरिंग',
     searchPlaceholder: 'यूज़र, नोटिस या दस्तावेज़ खोजें...',

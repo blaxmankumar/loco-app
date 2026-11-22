@@ -34,9 +34,10 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext';
-import { ANALYTICS_DATASETS, DISTRICTS, HELPLINES, ROLES } from '../data/initialData';
+import { ALL_LOBBIES, ANALYTICS_DATASETS, DIVISION_LOBBIES, DIVISIONS, HELPLINES, ROLES } from '../data/initialData';
 import { LocoLogo, OfficerAvatar, TrainSilhouette } from './BrandAssets';
 import LiveTrackingMap from './LiveTrackingMap';
+import ImportantNumbersPanel from './ImportantNumbersPanel';
 
 export default function AdminPortal({
   onOpenContactModal,
@@ -73,10 +74,13 @@ export default function AdminPortal({
   const [activeNav, setActiveNav] = useState('dashboard');
   const [globalSearch, setGlobalSearch] = useState('');
   const [analyticsMode, setAnalyticsMode] = useState('By Division');
-  const [dirDistrict, setDirDistrict] = useState('All');
+  const [dirDivision, setDirDivision] = useState('All');
+  const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
   const [dirQuery, setDirQuery] = useState('');
   const [notifOpen, setNotifOpen] = useState(false);
+
+  const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
 
   const navItems = [
     { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
@@ -94,12 +98,13 @@ export default function AdminPortal({
   const filteredContacts = useMemo(() => {
     const q = (dirQuery || globalSearch).trim().toLowerCase();
     return contacts.filter((c) => {
-      if (dirDistrict !== 'All' && c.district !== dirDistrict) return false;
+      if (dirDivision !== 'All' && c.division !== dirDivision) return false;
+      if (dirLobby !== 'All' && c.lobby !== dirLobby) return false;
       if (dirRole !== 'All' && c.role !== dirRole) return false;
       if (!q) return true;
-      return `${c.name} ${c.station} ${c.phone} ${c.district} ${c.role}`.toLowerCase().includes(q);
+      return `${c.name} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
     });
-  }, [contacts, dirDistrict, dirRole, dirQuery, globalSearch]);
+  }, [contacts, dirDivision, dirLobby, dirRole, dirQuery, globalSearch]);
 
   const chartData = ANALYTICS_DATASETS[analyticsMode] || ANALYTICS_DATASETS['By Division'];
   const chartMax = 1500;
@@ -656,13 +661,26 @@ export default function AdminPortal({
                     />
                   </div>
                   <select
-                    value={dirDistrict}
-                    onChange={(e) => setDirDistrict(e.target.value)}
+                    value={dirDivision}
+                    onChange={(e) => {
+                      setDirDivision(e.target.value);
+                      setDirLobby('All');
+                    }}
                     className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
                   >
-                    <option value="All">All Districts (28 CG)</option>
-                    {DISTRICTS.map((d) => (
-                      <option key={d}>{d}</option>
+                    <option value="All">All Divisions (SECR)</option>
+                    {DIVISIONS.map((d) => (
+                      <option key={d} value={d}>{d} Division</option>
+                    ))}
+                  </select>
+                  <select
+                    value={dirLobby}
+                    onChange={(e) => setDirLobby(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
+                  >
+                    <option value="All">All Lobbies</option>
+                    {visibleLobbies.map((l) => (
+                      <option key={l} value={l}>{l}</option>
                     ))}
                   </select>
                   <select
@@ -710,8 +728,8 @@ export default function AdminPortal({
                           </span>
                         </div>
                         <p className="text-xs font-semibold text-[#C8922A]">{c.role}</p>
-                        <p className="text-[11.5px] text-slate-500 mt-0.5">
-                          Lobby <span className="font-bold text-[#0E2347]">{c.station}</span> · {c.district}
+                        <p className="text-[11.5px] text-slate-500 mt-0.5 truncate">
+                          Lobby <span className="font-bold text-[#0E2347]">{c.station}</span> · {c.division}
                         </p>
                         <p className="text-xs font-mono font-semibold text-slate-700 mt-1">{c.phone}</p>
                       </div>
@@ -753,6 +771,11 @@ export default function AdminPortal({
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Matching Official SECR Lobby & Control Numbers */}
+              <div className="pt-3 border-t border-slate-200">
+                <ImportantNumbersPanel divisionFilter={dirDivision} lobbyFilter={dirLobby} />
               </div>
             </div>
           )}
@@ -908,26 +931,29 @@ export default function AdminPortal({
             </div>
           )}
 
-          {/* HELPLINES FULL VIEW */}
+          {/* HELPLINES & IMPORTANT NUMBERS FULL VIEW */}
           {activeNav === 'helplines' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {HELPLINES.map((h) => (
-                <div key={h.id} className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-5 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#C8922A]">{h.name}</span>
-                    <div className="text-3xl font-extrabold text-[#0E2347] mt-1">{h.number}</div>
-                    <p className="text-xs text-slate-500 mt-1">{h.desc}</p>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {HELPLINES.map((h) => (
+                  <div key={h.id} className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-5 flex items-center justify-between gap-4">
+                    <div>
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#C8922A]">{h.name}</span>
+                      <div className="text-2xl font-extrabold text-[#0E2347] mt-1">{h.number}</div>
+                      <p className="text-xs text-slate-500 mt-1">{h.desc}</p>
+                    </div>
+                    <a
+                      href={`tel:${h.number}`}
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm shrink-0 ${
+                        h.color === 'gold' ? 'bg-[#D4A13B]' : h.color === 'red' ? 'bg-red-600' : 'bg-[#0E2347]'
+                      }`}
+                    >
+                      <Phone className="w-5 h-5" />
+                    </a>
                   </div>
-                  <a
-                    href={`tel:${h.number}`}
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-sm ${
-                      h.color === 'gold' ? 'bg-[#D4A13B]' : h.color === 'red' ? 'bg-red-600' : 'bg-[#0E2347]'
-                    }`}
-                  >
-                    <Phone className="w-5 h-5" />
-                  </a>
-                </div>
-              ))}
+                ))}
+              </div>
+              <ImportantNumbersPanel />
             </div>
           )}
 
@@ -1002,8 +1028,8 @@ export default function AdminPortal({
                   <span className="font-bold text-emerald-700">Enabled (JPG / PNG / WebP)</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500 font-medium">District Coverage</span>
-                  <span className="font-bold text-[#0E2347]">28 Chhattisgarh Districts + 5 Divisions</span>
+                  <span className="text-slate-500 font-medium">SECR Divisions &amp; Lobbies</span>
+                  <span className="font-bold text-[#0E2347]">Bilaspur (13), Raipur (6), Nagpur (8)</span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-3">

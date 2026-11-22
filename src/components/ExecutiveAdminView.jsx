@@ -29,9 +29,10 @@ import {
   X,
 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext';
-import { ANALYTICS_DATASETS, DISTRICTS, HELPLINES, ROLES } from '../data/initialData';
+import { ALL_LOBBIES, ANALYTICS_DATASETS, DIVISION_LOBBIES, DIVISIONS, HELPLINES, ROLES } from '../data/initialData';
 import { LocoLogo, OfficerAvatar } from './BrandAssets';
 import LiveTrackingMap from './LiveTrackingMap';
+import ImportantNumbersPanel from './ImportantNumbersPanel';
 
 export default function ExecutiveAdminView({
   dark = false,
@@ -67,9 +68,12 @@ export default function ExecutiveAdminView({
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [search, setSearch] = useState('');
-  const [dirDistrict, setDirDistrict] = useState('All');
+  const [dirDivision, setDirDivision] = useState('All');
+  const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
   const [analyticsMode, setAnalyticsMode] = useState('By Division');
+
+  const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
 
   const topTabs = [
     { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard },
@@ -85,12 +89,13 @@ export default function ExecutiveAdminView({
   const filteredContacts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return contacts.filter((c) => {
-      if (dirDistrict !== 'All' && c.district !== dirDistrict) return false;
+      if (dirDivision !== 'All' && c.division !== dirDivision) return false;
+      if (dirLobby !== 'All' && c.lobby !== dirLobby) return false;
       if (dirRole !== 'All' && c.role !== dirRole) return false;
       if (!q) return true;
-      return `${c.name} ${c.station} ${c.phone} ${c.district} ${c.role}`.toLowerCase().includes(q);
+      return `${c.name} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
     });
-  }, [contacts, dirDistrict, dirRole, search]);
+  }, [contacts, dirDivision, dirLobby, dirRole, search]);
 
   const chartData = ANALYTICS_DATASETS[analyticsMode] || ANALYTICS_DATASETS['By Division'];
 
@@ -483,17 +488,32 @@ export default function ExecutiveAdminView({
               {activeTab === 'directory' && (
                 <div className={`rounded-2xl p-4 space-y-4 ${cardCls}`}>
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <select
-                        value={dirDistrict}
-                        onChange={(e) => setDirDistrict(e.target.value)}
+                        value={dirDivision}
+                        onChange={(e) => {
+                          setDirDivision(e.target.value);
+                          setDirLobby('All');
+                        }}
                         className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
                           dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
                         }`}
                       >
-                        <option value="All">All 28 CG Districts</option>
-                        {DISTRICTS.map((d) => (
-                          <option key={d}>{d}</option>
+                        <option value="All">All Divisions (SECR)</option>
+                        {DIVISIONS.map((d) => (
+                          <option key={d} value={d}>{d} Division</option>
+                        ))}
+                      </select>
+                      <select
+                        value={dirLobby}
+                        onChange={(e) => setDirLobby(e.target.value)}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                          dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
+                        }`}
+                      >
+                        <option value="All">All Lobbies</option>
+                        {visibleLobbies.map((l) => (
+                          <option key={l} value={l}>{l}</option>
                         ))}
                       </select>
                       <select
@@ -530,7 +550,7 @@ export default function ExecutiveAdminView({
                           <div className="min-w-0">
                             <p className="font-extrabold text-sm truncate">{c.name}</p>
                             <p className={`text-xs truncate ${subText}`}>
-                              {c.role} · {c.station} ({c.district})
+                              {c.role} · {c.lobby || c.station} · {c.division} Div
                             </p>
                             <p className="text-xs font-mono font-semibold mt-0.5">{c.phone}</p>
                           </div>
@@ -557,6 +577,11 @@ export default function ExecutiveAdminView({
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Matching Official SECR Lobby & Control Numbers */}
+                  <div className="pt-3 border-t border-slate-200/60">
+                    <ImportantNumbersPanel compact dark={dark} divisionFilter={dirDivision} lobbyFilter={dirLobby} />
                   </div>
                 </div>
               )}
@@ -642,19 +667,22 @@ export default function ExecutiveAdminView({
                 </div>
               )}
 
-              {/* HELPLINES TAB */}
+              {/* HELPLINES & IMPORTANT NUMBERS TAB */}
               {activeTab === 'helplines' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {HELPLINES.map((h) => (
-                    <a key={h.id} href={`tel:${h.number}`} className={`rounded-2xl p-4 flex items-center justify-between ${cardCls}`}>
-                      <div>
-                        <p className="text-xs font-bold text-[#D4A13B]">{h.name}</p>
-                        <p className="text-2xl font-extrabold">{h.number}</p>
-                        <p className={`text-[11px] ${subText}`}>{h.desc}</p>
-                      </div>
-                      <Phone className="w-5 h-5 text-[#0A66C2]" />
-                    </a>
-                  ))}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {HELPLINES.map((h) => (
+                      <a key={h.id} href={`tel:${h.number}`} className={`rounded-2xl p-4 flex items-center justify-between ${cardCls}`}>
+                        <div>
+                          <p className="text-xs font-bold text-[#D4A13B]">{h.name}</p>
+                          <p className="text-xl font-extrabold">{h.number}</p>
+                          <p className={`text-[11px] ${subText}`}>{h.desc}</p>
+                        </div>
+                        <Phone className="w-5 h-5 text-[#0A66C2] shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                  <ImportantNumbersPanel dark={dark} />
                 </div>
               )}
 

@@ -9,7 +9,7 @@ import {
 } from '../data/initialData';
 import { TRANSLATIONS } from '../data/translations';
 
-const STORAGE_KEY = 'loco_rail_demo_state_v1';
+const STORAGE_KEY = 'loco_rail_demo_state_v3';
 
 const defaultState = {
   lang: 'en',
@@ -159,14 +159,18 @@ export function AppStateProvider({ children }) {
   };
 
   const addContact = (contact) => {
+    const lobbyLabel = contact.lobby || 'Bilaspur (BSP)';
+    const codeMatch = lobbyLabel.match(/\(([^)]+)\)/);
+    const stationCode = (contact.station || (codeMatch ? codeMatch[1] : 'BSP')).trim().toUpperCase();
     const newContact = {
       id: `cnt-${Date.now()}`,
       name: contact.name.trim(),
       phone: contact.phone.trim(),
-      station: (contact.station || 'BSP').trim().toUpperCase(),
-      district: contact.district || 'Bilaspur',
+      station: stationCode,
+      lobby: lobbyLabel,
+      district: contact.district || contact.division || 'Bilaspur',
       role: contact.role || 'Loco Pilot',
-      division: contact.division || 'Bilaspur Division (SECR)',
+      division: contact.division || 'Bilaspur',
       employeeId: contact.employeeId || `CRW-${Math.floor(10000 + Math.random() * 89999)}`,
       status: contact.status || 'On Duty',
       shift: contact.shift || '08:00 – 16:00',

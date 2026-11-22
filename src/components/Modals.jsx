@@ -13,7 +13,7 @@ import {
   UserPlus,
   X,
 } from 'lucide-react';
-import { DISTRICTS, DIVISIONS, ROLES } from '../data/initialData';
+import { DIVISION_LOBBIES, DIVISIONS, ROLES } from '../data/initialData';
 import { LocoLogo, OfficerAvatar, TrainPhotoGraphic } from './BrandAssets';
 
 function ModalShell({ title, subtitle, icon: Icon, onClose, children, maxWidth = 'max-w-lg' }) {
@@ -54,13 +54,33 @@ function ModalShell({ title, subtitle, icon: Icon, onClose, children, maxWidth =
 export function ContactModal({ initialContact = null, onSave, onClose }) {
   const [name, setName] = useState(initialContact?.name || '');
   const [phone, setPhone] = useState(initialContact?.phone || '');
+  const [division, setDivision] = useState(
+    DIVISIONS.includes(initialContact?.division) ? initialContact.division : 'Bilaspur'
+  );
+  const [lobby, setLobby] = useState(
+    initialContact?.lobby || DIVISION_LOBBIES[DIVISIONS.includes(initialContact?.division) ? initialContact.division : 'Bilaspur'][0]
+  );
   const [station, setStation] = useState(initialContact?.station || 'BSP');
-  const [district, setDistrict] = useState(initialContact?.district || 'Bilaspur');
   const [role, setRole] = useState(initialContact?.role || 'Loco Pilot');
-  const [division, setDivision] = useState(initialContact?.division || 'Bilaspur Division (SECR)');
   const [photo, setPhoto] = useState(initialContact?.photo || null);
   const [photoError, setPhotoError] = useState('');
   const fileRef = useRef(null);
+
+  const availableLobbies = DIVISION_LOBBIES[division] || DIVISION_LOBBIES.Bilaspur;
+
+  const handleDivisionChange = (nextDiv) => {
+    setDivision(nextDiv);
+    const firstLobby = (DIVISION_LOBBIES[nextDiv] || DIVISION_LOBBIES.Bilaspur)[0];
+    setLobby(firstLobby);
+    const match = firstLobby.match(/\(([^)]+)\)/);
+    if (match) setStation(match[1]);
+  };
+
+  const handleLobbyChange = (nextLobby) => {
+    setLobby(nextLobby);
+    const match = nextLobby.match(/\(([^)]+)\)/);
+    if (match) setStation(match[1]);
+  };
 
   const handlePhotoChange = (e) => {
     setPhotoError('');
@@ -103,7 +123,8 @@ export function ContactModal({ initialContact = null, onSave, onClose }) {
       name,
       phone,
       station,
-      district,
+      lobby,
+      district: division,
       role,
       division,
       photo,
@@ -220,29 +241,29 @@ export function ContactModal({ initialContact = null, onSave, onClose }) {
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">District (Chhattisgarh)</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Division (SECR)</label>
             <select
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
+              value={division}
+              onChange={(e) => handleDivisionChange(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#D4A13B]/50"
             >
-              {DISTRICTS.map((d) => (
+              {DIVISIONS.map((d) => (
                 <option key={d} value={d}>
-                  {d}
+                  {d} Division
                 </option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Division</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Lobby</label>
             <select
-              value={division}
-              onChange={(e) => setDivision(e.target.value)}
+              value={lobby}
+              onChange={(e) => handleLobbyChange(e.target.value)}
               className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#D4A13B]/50"
             >
-              {DIVISIONS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+              {availableLobbies.map((l) => (
+                <option key={l} value={l}>
+                  {l}
                 </option>
               ))}
             </select>

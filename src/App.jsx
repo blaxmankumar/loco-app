@@ -270,7 +270,7 @@ function AppWorkspace() {
                 {[
                   {
                     title: 'Crew Directory + Photos',
-                    desc: 'Attach staff photos, filter 28 CG districts, one-tap Call & WhatsApp.',
+                    desc: 'Attach staff photos, filter SECR Divisions & Lobbies, Call & WhatsApp.',
                     tabTarget: 'directory',
                   },
                   {

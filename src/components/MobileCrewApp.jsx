@@ -31,8 +31,9 @@ import {
   Signal,
 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext';
-import { DISTRICTS, HELPLINES, ROLES, SHIFT_ROSTER } from '../data/initialData';
+import { ALL_LOBBIES, DIVISION_LOBBIES, DIVISIONS, HELPLINES, ROLES, SHIFT_ROSTER } from '../data/initialData';
 import { LocoLogo, OfficerAvatar, TrainPhotoGraphic } from './BrandAssets';
+import ImportantNumbersPanel from './ImportantNumbersPanel';
 
 export default function MobileCrewApp({
   framed = true,
@@ -61,21 +62,26 @@ export default function MobileCrewApp({
   const [hubSegment, setHubSegment] = useState('notices');
   const [docCategory, setDocCategory] = useState('Circulars');
   const [dirSearch, setDirSearch] = useState('');
-  const [dirDistrict, setDirDistrict] = useState('All');
+  const [dirSegment, setDirSegment] = useState('crew');
+  const [dirDivision, setDirDivision] = useState('All');
+  const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
   const [showRosterModal, setShowRosterModal] = useState(false);
+
+  const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
 
   const priorityNotice = notices.find((n) => n.priority) || notices[0];
 
   const filteredContacts = useMemo(() => {
     const q = dirSearch.trim().toLowerCase();
     return contacts.filter((c) => {
-      if (dirDistrict !== 'All' && c.district !== dirDistrict) return false;
+      if (dirDivision !== 'All' && c.division !== dirDivision) return false;
+      if (dirLobby !== 'All' && c.lobby !== dirLobby) return false;
       if (dirRole !== 'All' && c.role !== dirRole) return false;
       if (!q) return true;
-      return `${c.name} ${c.station} ${c.phone} ${c.district} ${c.role}`.toLowerCase().includes(q);
+      return `${c.name} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
     });
-  }, [contacts, dirDistrict, dirRole, dirSearch]);
+  }, [contacts, dirDivision, dirLobby, dirRole, dirSearch]);
 
   const filteredDocs = useMemo(() => {
     if (docCategory === 'All') return documents;
@@ -326,7 +332,7 @@ export default function MobileCrewApp({
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-[19px] font-extrabold">LOCO Crew Directory</h2>
-                  <p className="text-[11px] text-blue-200/85">28 CG Districts · Tap camera to add photo</p>
+                  <p className="text-[11px] text-blue-200/85">SECR Divisions &amp; Lobbies · Tap camera for photo</p>
                 </div>
                 <button
                   onClick={() => onOpenContactModal(null)}
@@ -342,6 +348,30 @@ export default function MobileCrewApp({
             </div>
 
             <div className="px-3.5 pt-2 space-y-2.5">
+              {/* Toggle: Crew Contacts vs Official 74 Lobby/Control Numbers */}
+              <div className="bg-white p-1 rounded-xl border border-slate-200 grid grid-cols-2 gap-1">
+                <button
+                  onClick={() => setDirSegment('crew')}
+                  className={`py-1.5 rounded-lg text-[11px] font-extrabold transition ${
+                    dirSegment === 'crew' ? 'bg-[#0E2347] text-[#F3D27A]' : 'text-slate-600'
+                  }`}
+                >
+                  Crew Contacts ({contacts.length})
+                </button>
+                <button
+                  onClick={() => setDirSegment('official')}
+                  className={`py-1.5 rounded-lg text-[11px] font-extrabold transition ${
+                    dirSegment === 'official' ? 'bg-[#0E2347] text-[#F3D27A]' : 'text-slate-600'
+                  }`}
+                >
+                  Call Book &amp; TLC (126)
+                </button>
+              </div>
+
+              {dirSegment === 'official' ? (
+                <ImportantNumbersPanel compact divisionFilter={dirDivision} lobbyFilter={dirLobby} />
+              ) : (
+                <>
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
@@ -352,21 +382,34 @@ export default function MobileCrewApp({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 <select
-                  value={dirDistrict}
-                  onChange={(e) => setDirDistrict(e.target.value)}
-                  className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-[11.5px] font-semibold"
+                  value={dirDivision}
+                  onChange={(e) => {
+                    setDirDivision(e.target.value);
+                    setDirLobby('All');
+                  }}
+                  className="px-2 py-2 rounded-xl bg-white border border-slate-200 text-[11px] font-semibold"
                 >
-                  <option value="All">All Districts</option>
-                  {DISTRICTS.map((d) => (
-                    <option key={d}>{d}</option>
+                  <option value="All">All Divisions</option>
+                  {DIVISIONS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <select
+                  value={dirLobby}
+                  onChange={(e) => setDirLobby(e.target.value)}
+                  className="px-2 py-2 rounded-xl bg-white border border-slate-200 text-[11px] font-semibold"
+                >
+                  <option value="All">All Lobbies</option>
+                  {visibleLobbies.map((l) => (
+                    <option key={l} value={l}>{l}</option>
                   ))}
                 </select>
                 <select
                   value={dirRole}
                   onChange={(e) => setDirRole(e.target.value)}
-                  className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 text-[11.5px] font-semibold"
+                  className="px-2 py-2 rounded-xl bg-white border border-slate-200 text-[11px] font-semibold"
                 >
                   <option value="All">All Roles</option>
                   {ROLES.map((r) => (
@@ -395,7 +438,7 @@ export default function MobileCrewApp({
                       <div className="min-w-0">
                         <p className="text-[13px] font-extrabold text-[#0E2347] truncate">{c.name}</p>
                         <p className="text-[10.5px] text-slate-500 truncate">
-                          {c.role} · <span className="font-bold text-[#0E2347]">{c.station}</span> · {c.district}
+                          {c.role} · <span className="font-bold text-[#0E2347]">{c.lobby || c.station}</span> · {c.division}
                         </p>
                         <p className="text-[11px] font-mono font-semibold text-slate-600">{c.phone}</p>
                       </div>
@@ -421,6 +464,8 @@ export default function MobileCrewApp({
                   </div>
                 ))}
               </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -749,6 +794,8 @@ export default function MobileCrewApp({
                   </a>
                 ))}
               </div>
+
+              <ImportantNumbersPanel compact />
 
               <button
                 onClick={onOpenAuth}
