@@ -31,7 +31,11 @@ export default function ImportantNumbersPanel({
     const lobbyWord = lobbyFilter !== 'All' ? lobbyFilter.split('(')[0].trim().toLowerCase() : '';
 
     return IMPORTANT_PHONE_NUMBERS.filter((item) => {
-      if (cat !== 'All' && item.category !== cat) return false;
+      if (cat === 'BSP Division') {
+        if (item.category !== 'BSP Division' && item.category !== 'Bilaspur TLC') return false;
+      } else if (cat !== 'All' && item.category !== cat) {
+        return false;
+      }
       if (lobbyFilter !== 'All') {
         const hay = `${item.name} ${item.display}`.toLowerCase();
         if (!(lobbyCode && hay.includes(lobbyCode)) && !(lobbyWord && hay.includes(lobbyWord))) {

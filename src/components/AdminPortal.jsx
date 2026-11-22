@@ -703,6 +703,9 @@ export default function AdminPortal({
                 </button>
               </div>
 
+              {/* Official SECR Lobby & Bilaspur TLC Numbers — Immediately Visible at Top! */}
+              <ImportantNumbersPanel divisionFilter={dirDivision} lobbyFilter={dirLobby} />
+
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredContacts.map((c) => (
                   <div
@@ -771,11 +774,6 @@ export default function AdminPortal({
                     </div>
                   </div>
                 ))}
-              </div>
-
-              {/* Matching Official SECR Lobby & Control Numbers */}
-              <div className="pt-3 border-t border-slate-200">
-                <ImportantNumbersPanel divisionFilter={dirDivision} lobbyFilter={dirLobby} />
               </div>
             </div>
           )}

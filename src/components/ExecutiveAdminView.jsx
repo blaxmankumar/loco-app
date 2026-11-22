@@ -537,7 +537,34 @@ export default function ExecutiveAdminView({
                     </button>
                   </div>
 
+                  {/* Official SECR Lobby & Bilaspur TLC Numbers — Immediately Visible at Top! */}
+                  <ImportantNumbersPanel compact dark={dark} divisionFilter={dirDivision} lobbyFilter={dirLobby} />
+
                   <div className="space-y-2.5">
+                    {filteredContacts.length === 0 && (
+                      <div className={`p-5 rounded-xl border text-center space-y-2 ${softBg}`}>
+                        <p className="text-xs font-bold">No staff contact matches this exact lobby &amp; role yet.</p>
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => {
+                              setDirDivision('All');
+                              setDirLobby('All');
+                              setDirRole('All');
+                              setSearch('');
+                            }}
+                            className="px-3 py-1.5 rounded-full bg-[#0E2347] text-white text-xs font-bold"
+                          >
+                            Show All Staff
+                          </button>
+                          <button
+                            onClick={() => onOpenContactModal(null)}
+                            className="px-3 py-1.5 rounded-full bg-[#D4A13B] text-[#0E2347] text-xs font-bold"
+                          >
+                            + Add Contact Here
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     {filteredContacts.map((c) => (
                       <div key={c.id} className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${softBg}`}>
                         <div className="flex items-center gap-3 min-w-0">
@@ -577,11 +604,6 @@ export default function ExecutiveAdminView({
                         </div>
                       </div>
                     ))}
-                  </div>
-
-                  {/* Matching Official SECR Lobby & Control Numbers */}
-                  <div className="pt-3 border-t border-slate-200/60">
-                    <ImportantNumbersPanel compact dark={dark} divisionFilter={dirDivision} lobbyFilter={dirLobby} />
                   </div>
                 </div>
               )}
