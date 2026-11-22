@@ -74,6 +74,7 @@ export default function AdminPortal({
   const [activeNav, setActiveNav] = useState('dashboard');
   const [globalSearch, setGlobalSearch] = useState('');
   const [analyticsMode, setAnalyticsMode] = useState('By Division');
+  const [dirView, setDirView] = useState('crew');
   const [dirDivision, setDirDivision] = useState('All');
   const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
@@ -649,50 +650,24 @@ export default function AdminPortal({
           {/* CREW DIRECTORY & USERS PAGE (WITH CONTACT PHOTO UPLOAD!) */}
           {(activeNav === 'directory' || activeNav === 'users') && (
             <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-5 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2.5 flex-1">
-                  <div className="relative min-w-[220px] flex-1 max-w-sm">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      value={dirQuery}
-                      onChange={(e) => setDirQuery(e.target.value)}
-                      placeholder="Search name, station (BSP), phone..."
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4A13B]/50"
-                    />
-                  </div>
-                  <select
-                    value={dirDivision}
-                    onChange={(e) => {
-                      setDirDivision(e.target.value);
-                      setDirLobby('All');
-                    }}
-                    className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setDirView('crew')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
+                      dirView === 'crew' ? 'bg-[#0E2347] text-[#F3D27A]' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
                   >
-                    <option value="All">All Divisions (SECR)</option>
-                    {DIVISIONS.map((d) => (
-                      <option key={d} value={d}>{d} Division</option>
-                    ))}
-                  </select>
-                  <select
-                    value={dirLobby}
-                    onChange={(e) => setDirLobby(e.target.value)}
-                    className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
+                    Crew Staff ({filteredContacts.length})
+                  </button>
+                  <button
+                    onClick={() => setDirView('official')}
+                    className={`px-4 py-2 rounded-xl text-xs font-extrabold transition ${
+                      dirView === 'official' ? 'bg-[#0E2347] text-[#F3D27A]' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
                   >
-                    <option value="All">All Lobbies</option>
-                    {visibleLobbies.map((l) => (
-                      <option key={l} value={l}>{l}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={dirRole}
-                    onChange={(e) => setDirRole(e.target.value)}
-                    className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
-                  >
-                    <option value="All">All Roles</option>
-                    {ROLES.map((r) => (
-                      <option key={r}>{r}</option>
-                    ))}
-                  </select>
+                    Official Lobby &amp; TLC Call Book (126)
+                  </button>
                 </div>
                 <button
                   onClick={() => onOpenContactModal(null)}
@@ -703,10 +678,57 @@ export default function AdminPortal({
                 </button>
               </div>
 
-              {/* Official SECR Lobby & Bilaspur TLC Numbers — Immediately Visible at Top! */}
-              <ImportantNumbersPanel divisionFilter={dirDivision} lobbyFilter={dirLobby} />
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="relative min-w-[220px] flex-1 max-w-sm">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={dirQuery}
+                    onChange={(e) => setDirQuery(e.target.value)}
+                    placeholder="Search name, station (BSP), phone..."
+                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#D4A13B]/50"
+                  />
+                </div>
+                <select
+                  value={dirDivision}
+                  onChange={(e) => {
+                    setDirDivision(e.target.value);
+                    setDirLobby('All');
+                  }}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
+                >
+                  <option value="All">All Divisions (SECR)</option>
+                  {DIVISIONS.map((d) => (
+                    <option key={d} value={d}>{d} Division</option>
+                  ))}
+                </select>
+                <select
+                  value={dirLobby}
+                  onChange={(e) => setDirLobby(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
+                >
+                  <option value="All">All Lobbies</option>
+                  {visibleLobbies.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+                {dirView === 'crew' && (
+                  <select
+                    value={dirRole}
+                    onChange={(e) => setDirRole(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold bg-white"
+                  >
+                    <option value="All">All Roles</option>
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {dirView === 'official' ? (
+                <ImportantNumbersPanel divisionFilter={dirDivision} lobbyFilter={dirLobby} />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filteredContacts.map((c) => (
                   <div
                     key={c.id}
@@ -774,7 +796,8 @@ export default function AdminPortal({
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
           )}
 

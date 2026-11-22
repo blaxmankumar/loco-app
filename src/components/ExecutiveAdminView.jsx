@@ -68,6 +68,7 @@ export default function ExecutiveAdminView({
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [search, setSearch] = useState('');
+  const [dirView, setDirView] = useState('crew'); // 'crew' | 'official'
   const [dirDivision, setDirDivision] = useState('All');
   const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
@@ -487,47 +488,33 @@ export default function ExecutiveAdminView({
               {/* DIRECTORY TAB */}
               {activeTab === 'directory' && (
                 <div className={`rounded-2xl p-4 space-y-4 ${cardCls}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      <select
-                        value={dirDivision}
-                        onChange={(e) => {
-                          setDirDivision(e.target.value);
-                          setDirLobby('All');
-                        }}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
-                          dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
+                  {/* Clear Section Switcher: Crew Staff vs Official 126 Call Book */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-200/70">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setDirView('crew')}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
+                          dirView === 'crew'
+                            ? 'bg-[#0E2347] text-[#F3D27A]'
+                            : dark
+                            ? 'bg-white/10 text-slate-300'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
-                        <option value="All">All Divisions (SECR)</option>
-                        {DIVISIONS.map((d) => (
-                          <option key={d} value={d}>{d} Division</option>
-                        ))}
-                      </select>
-                      <select
-                        value={dirLobby}
-                        onChange={(e) => setDirLobby(e.target.value)}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
-                          dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
+                        Crew Staff ({filteredContacts.length})
+                      </button>
+                      <button
+                        onClick={() => setDirView('official')}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition ${
+                          dirView === 'official'
+                            ? 'bg-[#0E2347] text-[#F3D27A]'
+                            : dark
+                            ? 'bg-white/10 text-slate-300'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                         }`}
                       >
-                        <option value="All">All Lobbies</option>
-                        {visibleLobbies.map((l) => (
-                          <option key={l} value={l}>{l}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={dirRole}
-                        onChange={(e) => setDirRole(e.target.value)}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
-                          dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
-                        }`}
-                      >
-                        <option value="All">All Roles</option>
-                        {ROLES.map((r) => (
-                          <option key={r}>{r}</option>
-                        ))}
-                      </select>
+                        Official Lobby &amp; TLC Call Book (126)
+                      </button>
                     </div>
                     <button
                       onClick={() => onOpenContactModal(null)}
@@ -537,10 +524,76 @@ export default function ExecutiveAdminView({
                     </button>
                   </div>
 
-                  {/* Official SECR Lobby & Bilaspur TLC Numbers — Immediately Visible at Top! */}
-                  <ImportantNumbersPanel compact dark={dark} divisionFilter={dirDivision} lobbyFilter={dirLobby} />
+                  {/* Division + Lobby + Role Filter Bar */}
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      value={dirDivision}
+                      onChange={(e) => {
+                        setDirDivision(e.target.value);
+                        setDirLobby('All');
+                      }}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                        dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <option value="All">All Divisions (SECR)</option>
+                      {DIVISIONS.map((d) => (
+                        <option key={d} value={d}>{d} Division</option>
+                      ))}
+                    </select>
+                    <select
+                      value={dirLobby}
+                      onChange={(e) => setDirLobby(e.target.value)}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                        dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <option value="All">All Lobbies</option>
+                      {visibleLobbies.map((l) => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
+                    {dirView === 'crew' && (
+                      <select
+                        value={dirRole}
+                        onChange={(e) => setDirRole(e.target.value)}
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+                          dark ? 'bg-[#091326] border-white/15' : 'bg-white border-slate-200'
+                        }`}
+                      >
+                        <option value="All">All Roles</option>
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
 
-                  <div className="space-y-2.5">
+                  {/* 1-Click Role Filter Chips when in Crew View */}
+                  {dirView === 'crew' && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                      {['All', ...ROLES].map((r) => (
+                        <button
+                          key={r}
+                          onClick={() => setDirRole(r)}
+                          className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap border transition ${
+                            dirRole === r
+                              ? 'bg-[#D4A13B] text-[#0E2347] border-[#D4A13B]'
+                              : dark
+                              ? 'bg-white/5 text-slate-300 border-white/10'
+                              : 'bg-[#F4F7FC] text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {r === 'All' ? 'All Staff' : r}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {dirView === 'official' ? (
+                    <ImportantNumbersPanel compact dark={dark} divisionFilter={dirDivision} lobbyFilter={dirLobby} />
+                  ) : (
+                    <div className="space-y-2.5">
                     {filteredContacts.length === 0 && (
                       <div className={`p-5 rounded-xl border text-center space-y-2 ${softBg}`}>
                         <p className="text-xs font-bold">No staff contact matches this exact lobby &amp; role yet.</p>
@@ -604,7 +657,8 @@ export default function ExecutiveAdminView({
                         </div>
                       </div>
                     ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
 
