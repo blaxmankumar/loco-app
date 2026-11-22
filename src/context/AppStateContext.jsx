@@ -13,6 +13,7 @@ const STORAGE_KEY = 'loco_rail_demo_state_v1';
 
 const defaultState = {
   lang: 'en',
+  themeTemplate: 'executive',
   driverGpsEnabled: true,
   realCoords: null,
   totalUsers: 5842,
@@ -343,6 +344,16 @@ export function AppStateProvider({ children }) {
     notify(nextLang === 'hi' ? 'भाषा हिंदी में बदल गई है' : 'Language switched to English', 'info');
   };
 
+  const setThemeTemplate = (tpl) => {
+    setState((prev) => ({ ...prev, themeTemplate: tpl }));
+    const labels = {
+      executive: 'LinkedIn Executive template active',
+      classic: 'Classic Rail Command template active',
+      dark: 'Royal Dark Control Room template active',
+    };
+    notify(labels[tpl] || 'Template updated', 'info');
+  };
+
   const toggleLang = () => setLang(state.lang === 'hi' ? 'en' : 'hi');
 
   const t = (key) => TRANSLATIONS[state.lang || 'en']?.[key] || TRANSLATIONS.en[key] || key;
@@ -397,6 +408,8 @@ export function AppStateProvider({ children }) {
       value={{
         ...state,
         lang: state.lang || 'en',
+        themeTemplate: state.themeTemplate || 'executive',
+        setThemeTemplate,
         setLang,
         toggleLang,
         t,

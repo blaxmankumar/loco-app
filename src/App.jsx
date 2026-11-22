@@ -5,11 +5,13 @@ import {
   Languages,
   Lock,
   Monitor,
+  Palette,
   Smartphone,
   Sparkles,
 } from 'lucide-react';
 import { AppStateProvider, useAppState } from './context/AppStateContext';
 import AdminPortal from './components/AdminPortal';
+import ExecutiveAdminView from './components/ExecutiveAdminView';
 import MobileCrewApp from './components/MobileCrewApp';
 import { LocoLogo } from './components/BrandAssets';
 import {
@@ -33,6 +35,8 @@ function AppWorkspace() {
     notify,
     lang,
     setLang,
+    themeTemplate,
+    setThemeTemplate,
     t,
   } = useAppState();
 
@@ -164,6 +168,26 @@ function AppWorkspace() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Template Switcher: Executive (LinkedIn) | Classic | Dark */}
+          <div className="hidden md:flex items-center bg-white/10 p-0.5 rounded-lg border border-white/15" title="Switch Portal Template">
+            <Palette className="w-3.5 h-3.5 text-[#F3D27A] mx-1.5" />
+            {[
+              { id: 'executive', label: 'Executive' },
+              { id: 'classic', label: 'Classic' },
+              { id: 'dark', label: 'Dark' },
+            ].map((tpl) => (
+              <button
+                key={tpl.id}
+                onClick={() => setThemeTemplate(tpl.id)}
+                className={`px-2 py-1 rounded-md text-[10.5px] font-extrabold transition ${
+                  themeTemplate === tpl.id ? 'bg-[#F3D27A] text-[#0E2347]' : 'text-blue-100 hover:text-white'
+                }`}
+              >
+                {tpl.label}
+              </button>
+            ))}
+          </div>
+
           {/* English / Hindi Instant Switcher */}
           <div className="flex items-center bg-white/10 p-0.5 rounded-lg border border-white/15">
             <button
@@ -195,17 +219,29 @@ function AppWorkspace() {
       </div>
 
       {/* VIEWPORT */}
-      {mode === 'admin' && (
-        <AdminPortal
-          onOpenContactModal={(contact) => setContactModalData({ open: true, contact })}
-          onOpenNoticeModal={() => setNoticeModalOpen(true)}
-          onOpenUploadModal={() => setUploadModalOpen(true)}
-          onOpenIncidentModal={() => setIncidentModalOpen(true)}
-          onPreviewDoc={(doc) => setPreviewState({ doc, notice: null })}
-          onPreviewNotice={(notice) => setPreviewState({ doc: null, notice })}
-          onOpenAuth={() => setAuthModalOpen(true)}
-        />
-      )}
+      {mode === 'admin' &&
+        (themeTemplate === 'classic' ? (
+          <AdminPortal
+            onOpenContactModal={(contact) => setContactModalData({ open: true, contact })}
+            onOpenNoticeModal={() => setNoticeModalOpen(true)}
+            onOpenUploadModal={() => setUploadModalOpen(true)}
+            onOpenIncidentModal={() => setIncidentModalOpen(true)}
+            onPreviewDoc={(doc) => setPreviewState({ doc, notice: null })}
+            onPreviewNotice={(notice) => setPreviewState({ doc: null, notice })}
+            onOpenAuth={() => setAuthModalOpen(true)}
+          />
+        ) : (
+          <ExecutiveAdminView
+            dark={themeTemplate === 'dark'}
+            onOpenContactModal={(contact) => setContactModalData({ open: true, contact })}
+            onOpenNoticeModal={() => setNoticeModalOpen(true)}
+            onOpenUploadModal={() => setUploadModalOpen(true)}
+            onOpenIncidentModal={() => setIncidentModalOpen(true)}
+            onPreviewDoc={(doc) => setPreviewState({ doc, notice: null })}
+            onPreviewNotice={(notice) => setPreviewState({ doc: null, notice })}
+            onOpenAuth={() => setAuthModalOpen(true)}
+          />
+        ))}
 
       {mode === 'mobile' && (
         <div className="flex-1 bg-gradient-to-br from-[#F4F7FC] via-[#E9F0FA] to-[#DCE8F8] py-8 px-6 flex items-center justify-center">
