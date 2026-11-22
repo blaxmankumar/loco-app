@@ -60,6 +60,12 @@ export function AppStateProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
+    if (!state.contacts || state.contacts.length < INITIAL_CONTACTS.length) {
+      setState((prev) => ({ ...prev, contacts: INITIAL_CONTACTS }));
+    }
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
