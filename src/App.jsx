@@ -40,7 +40,10 @@ function AppWorkspace() {
     t,
   } = useAppState();
 
+  const isNativeApp = typeof window !== 'undefined' && Boolean(window.Capacitor?.isNativePlatform?.());
+
   const [mode, setMode] = useState(() => {
+    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) return 'mobile';
     const params = new URLSearchParams(window.location.search);
     const m = params.get('mode');
     if (m === 'mobile' || m === 'admin' || m === 'split') return m;
@@ -77,8 +80,8 @@ function AppWorkspace() {
     }
   };
 
-  // Native full-screen Android app mode on mobile phones
-  if (isSmallScreen && mode === 'mobile') {
+  // Native full-screen Android app mode on mobile phones & Capacitor APK
+  if ((isSmallScreen || isNativeApp) && mode === 'mobile') {
     return (
       <>
         <MobileCrewApp

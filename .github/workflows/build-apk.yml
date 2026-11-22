@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Setup Java 21 (for Capacitor Android Gradle)
+      - name: Setup Java 21 (for Capacitor 7 Android Gradle)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -28,33 +28,62 @@ jobs:
           npm ci
           npm run build
 
-      - name: Install Capacitor & generate Android project
+      - name: Install Capacitor 7 & generate Android project
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
           npx cap add android
           npx cap sync android
 
-      - name: Fix Kotlin stdlib duplicate class conflict & apply LOCO app icon
+      - name: Configure Android Gradle, GPS permissions & LOCO launcher icon
         run: |
+          # 1. Fix Kotlin stdlib duplicate class conflict (kotlin-stdlib 1.8.22 vs jdk7/jdk8 1.6.21)
           cat << 'EOF' >> android/app/build.gradle
 
           dependencies {
               implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.22"))
           }
           EOF
-          for dir in android/app/src/main/res/mipmap-*; do
-            if [ -d "$dir" ]; then
-              cp public/icon-512.png "$dir/ic_launcher.png" || true
-              cp public/icon-512.png "$dir/ic_launcher_round.png" || true
-              cp public/icon-512.png "$dir/ic_launcher_foreground.png" || true
+
+          # 2. Remove adaptive-icon XML folder to prevent duplicate .xml/.png resource crash
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+
+          # 3. Apply LOCO 512px PNG icon strictly to density mipmap folders
+          for dir in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            target="android/app/src/main/res/$dir"
+            if [ -d "$target" ]; then
+              cp public/icon-512.png "$target/ic_launcher.png"
+              cp public/icon-512.png "$target/ic_launcher_round.png"
+              rm -f "$target/ic_launcher_foreground.png"
             fi
           done
+
+          # 4. Safely add Android GPS location permissions for Live Driver Tracking
+          node --input-type=commonjs -e '
+            const fs = require("fs");
+            const p = "android/app/src/main/AndroidManifest.xml";
+            let xml = fs.readFileSync(p, "utf8");
+            const perms = [
+              "    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />",
+              "    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />"
+            ];
+            for (const perm of perms) {
+              if (!xml.includes(perm.trim())) {
+                xml = xml.replace("</manifest>", perm + "\n</manifest>");
+              }
+            }
+            fs.writeFileSync(p, xml, "utf8");
+          '
+
+          # 5. Verify launcher icons & manifest cleanly before Gradle runs
+          find android/app/src/main/res -name 'ic_launcher*' | sort
+          tail -n 12 android/app/build.gradle
 
       - name: Build installable LOCO APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload LOCO-Android.apk artifact
         uses: actions/upload-artifact@v4

@@ -874,7 +874,7 @@ export default function MobileCrewApp({
   );
 
   if (!framed) {
-    return <div className="h-[100dvh] w-full max-w-md mx-auto bg-white">{appScreen}</div>;
+    return <div className="h-[100dvh] w-full bg-[#F3F6FB]">{appScreen}</div>;
   }
 
   return (
