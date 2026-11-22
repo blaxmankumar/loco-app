@@ -9,7 +9,7 @@ import {
 } from '../data/initialData';
 import { TRANSLATIONS } from '../data/translations';
 
-const STORAGE_KEY = 'loco_rail_demo_state_v6';
+const STORAGE_KEY = 'loco_rail_demo_state_v7';
 
 const defaultState = {
   lang: 'en',

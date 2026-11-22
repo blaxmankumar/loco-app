@@ -174,7 +174,7 @@ export default function MobileCrewApp({
             <div className="px-3.5 -mt-1 space-y-3">
               {/* 4-Stat Strip */}
               <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 grid grid-cols-4 divide-x divide-slate-100 py-2.5 px-1">
-                <StatCell icon={Users} iconColor="text-[#1A3F7A]" num="286" label={t('activeCrew')} onClick={() => setTab('directory')} />
+                <StatCell icon={Users} iconColor="text-[#1A3F7A]" num={contacts.length} label={t('activeCrew')} onClick={() => setTab('directory')} />
                 <StatCell icon={FileText} iconColor="text-[#D4A13B]" num={notices.length + 3} label={t('noticesToday')} onClick={() => setTab('notices')} />
                 <StatCell icon={Layers} iconColor="text-[#1A3F7A]" num={36 + documents.length} label={t('docsShared')} onClick={() => setTab('documents')} />
                 <StatCell icon={ShieldCheck} iconColor="text-[#D4A13B]" num="12" label={t('pendingTasks')} onClick={() => setShowRosterModal(true)} />

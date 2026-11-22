@@ -182,82 +182,85 @@ const LOBBY_OFFICIAL_PHONES = {
   KWN: '9561005386',
 };
 
-const STAFF_NAME_POOL = {
-  'Loco Pilot': [
-    'Rajeshwar Patel', 'Dinesh Chandra', 'Suresh Mahanta', 'Vinay Kumar Netam',
-    'Rameshwar Sahu', 'Anil Kumar Pandey', 'Kamlesh Banjare', 'Mahendra Singh Thakur',
-    'Santosh Kumar Verma', 'Prashant Deshpande', 'Nitin Gajbhiye', 'Hemant Kumar Sahu',
-    'Bhupendra Tiwari', 'Rajkumar Dewangan', 'Ashok Kumar Yadav', 'Yogeshwar Verma',
-    'Devendra Singh', 'Lalit Kumar Nayak', 'Pramod Kumar Patel', 'Satish Chandra Rao',
-    'Mukesh Kumar Sharma', 'Gajendra Kurrey', 'Naresh Kumar Sinha', 'Ravi Shankar Dubey',
-    'Jitendra Kumar Sahu', 'Shailendra Verma', 'Kishore Kumar Patel',
-  ],
-  'Assistant Loco Pilot': [
-    'Rohan Kashyap', 'Manoj Dewangan', 'Amit Kumar Sahu', 'Deepak Meshram',
-    'Sandeep Tiwari', 'Abhishek Sahu', 'Rahul Kaushik', 'Pankaj Kumar Singh',
-    'Vikram Rathore', 'Nikhil Chandrakar', 'Tushar Deshmukh', 'Harshvardhan Patel',
-    'Gaurav Kumar Verma', 'Praveen Kumar Yadav', 'Shubham Agrawal', 'Anurag Mishra',
-    'Vishweshwar Kumar', 'Lokeshwar Sahu', 'Ranjeet Kumar', 'Avinash Tirkey',
-    'Mayank Sharma', 'Kunal Bisen', 'Rohit Chauhan', 'Saurabh Pandey',
-    'Mohan Lal Sahu', 'Vivek Kumar Patel', 'Akash Kumar Verma',
-  ],
-  'Train Manager': [
-    'Prakash Narayan', 'Harishankar Yadav', 'Pankaj Deshmukh', 'Ritesh Gedam',
-    'Mohit Verma', 'K. Sai Kumar', 'S. K. Yadav', 'Manish Kumar',
-    'Lala Ram Sahu', 'Bhanu Prakash', 'C. L. Dewangan', 'Sanjeev Mishra',
-    'Awadh Kumar', 'Dev Narayan', 'R. B. Ray', 'U. K. Yadav',
-    'Sanyasi Rao', 'B. K. Yadav', 'Atul Kr Parate', 'H. K. Lasher',
-    'C. S. Kurrey', 'S. K. Gupta', 'M. Saleem Khan', 'Nagendra Kumar',
-    'P. K. Nangal', 'R. K. Mishra', 'S. O. Dubey',
-  ],
-  'Station Controller': [
-    'Vivek Kumar Sahu', 'Sunita Deshmukh', 'Meenakshi Nair', 'Priya Sharma',
-    'Neha Sahu', 'Seema Tolwani', 'Kavita Verma', 'Anita Desai',
-    'Ashish Mishra', 'Bhaskar Das', 'Jitendra Naidu', 'A. K. Verma',
-    'V. K. Sharma', 'Vinod Sharma', 'Amit Kaushik', 'Shashi Choudhary',
-    'C. K. Dubey', 'Manoj Kumar Sharma', 'P. R. Pandit', 'P. R. Chakraborty',
-    'H. S. S. Sharma', 'A. T. Mukherjee', 'B. Ravikant', 'S. Bhattacharya',
-    'Rodrigz James', 'Santosh Kumar', 'Alok Kumar Tiwari',
-  ],
-};
+const FIRST_NAMES_M = [
+  'Rajeshwar', 'Dinesh', 'Suresh', 'Vinay', 'Rameshwar', 'Anil', 'Kamlesh', 'Mahendra',
+  'Santosh', 'Prashant', 'Nitin', 'Hemant', 'Bhupendra', 'Rajkumar', 'Ashok', 'Yogeshwar',
+  'Devendra', 'Lalit', 'Pramod', 'Satish', 'Mukesh', 'Gajendra', 'Naresh', 'Ravi',
+  'Jitendra', 'Shailendra', 'Kishore', 'Rohan', 'Manoj', 'Amit', 'Deepak', 'Sandeep',
+  'Abhishek', 'Rahul', 'Pankaj', 'Vikram', 'Nikhil', 'Tushar', 'Harshvardhan', 'Gaurav',
+  'Praveen', 'Shubham', 'Anurag', 'Vishweshwar', 'Lokeshwar', 'Ranjeet', 'Avinash', 'Mayank',
+  'Kunal', 'Rohit', 'Saurabh', 'Mohan', 'Vivek', 'Akash', 'Prakash', 'Harishankar',
+  'Ritesh', 'Mohit', 'Manish', 'Bhanu', 'Sanjeev', 'Awadh', 'Alok', 'Ajay',
+];
+
+const FIRST_NAMES_F = [
+  'Sunita', 'Meenakshi', 'Priya', 'Neha', 'Seema', 'Kavita', 'Anita', 'Shashi',
+  'Pooja', 'Anjali', 'Rekha', 'Nandini', 'Kiran', 'Swati',
+];
+
+const LAST_NAMES = [
+  'Patel', 'Verma', 'Sahu', 'Tiwari', 'Dewangan', 'Yadav', 'Sharma', 'Mishra',
+  'Deshmukh', 'Meshram', 'Netam', 'Pandey', 'Banjare', 'Thakur', 'Gajbhiye', 'Kurrey',
+  'Kaushik', 'Kashyap', 'Rathore', 'Chandrakar', 'Sinha', 'Dubey', 'Nayak', 'Rao',
+  'Mahanta', 'Gedam', 'Choudhary', 'Singh', 'Agrawal', 'Bisen', 'Tirkey', 'Chauhan',
+];
 
 function buildFullSecrContacts() {
   const list = [];
-  const coreRoles = ['Loco Pilot', 'Assistant Loco Pilot', 'Train Manager', 'Station Controller'];
-  let idx = 0;
+  // 4 Loco Pilots + 4 Assistant Loco Pilots + 2 Train Managers + 2 Station Controllers = 12 crew per lobby (324 total!)
+  const rolePlan = [
+    { role: 'Loco Pilot', prefix: 'LP', count: 4 },
+    { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 4 },
+    { role: 'Train Manager', prefix: 'TM', count: 2 },
+    { role: 'Station Controller', prefix: 'SC', count: 2 },
+  ];
+  let lobbyIdx = 0;
+  let seq = 0;
+
   DIVISIONS.forEach((division) => {
     (DIVISION_LOBBIES[division] || []).forEach((lobbyLabel) => {
       const m = lobbyLabel.match(/\(([^)]+)\)/);
       const code = m ? m[1] : 'BSP';
       const basePhone = LOBBY_OFFICIAL_PHONES[code] || '9752441439';
-      coreRoles.forEach((role, rIdx) => {
-        const names = STAFF_NAME_POOL[role];
-        const name = names[idx % names.length];
-        const prefix = role === 'Loco Pilot' ? 'LP' : role === 'Assistant Loco Pilot' ? 'ALP' : role === 'Train Manager' ? 'TM' : 'SC';
-        const female = ['Sunita', 'Meenakshi', 'Priya', 'Neha', 'Seema', 'Kavita', 'Anita', 'Shashi'].some((f) =>
-          name.startsWith(f)
-        );
-        list.push({
-          id: `cnt-${division.toLowerCase()}-${code.toLowerCase()}-${rIdx + 1}`,
-          name,
-          role,
-          station: code,
-          lobby: lobbyLabel,
-          district: division,
-          division,
-          phone: basePhone,
-          employeeId: `${prefix}-${10100 + idx * 17 + rIdx}`,
-          status: rIdx % 3 === 2 ? 'Available' : 'On Duty',
-          shift: rIdx % 2 === 0 ? '08:00 – 16:00' : '16:00 – 00:00',
-          photo: null,
-          avatarVariant: female
-            ? rIdx % 2 === 0
-              ? 'officer-female-1'
-              : 'officer-female-2'
-            : ['officer-male-1', 'officer-male-2', 'officer-male-3'][(idx + rIdx) % 3],
-        });
+
+      rolePlan.forEach(({ role, prefix, count }) => {
+        for (let k = 0; k < count; k += 1) {
+          const isFemale = role === 'Station Controller' && k === 1;
+          const firstName = isFemale
+            ? FIRST_NAMES_F[(lobbyIdx + seq) % FIRST_NAMES_F.length]
+            : FIRST_NAMES_M[(seq * 7 + lobbyIdx * 3 + k) % FIRST_NAMES_M.length];
+          const lastName = LAST_NAMES[(seq * 5 + lobbyIdx * 2 + k * 3) % LAST_NAMES.length];
+          const name = `${firstName} ${lastName}`;
+
+          // First entry in each role keeps exact official lobby number; additional crew get realistic 10-digit SECR mobile numbers
+          const phone =
+            k === 0
+              ? basePhone
+              : `9752${String(400000 + ((seq * 7919 + lobbyIdx * 101 + k * 37) % 589999)).padStart(6, '0')}`;
+
+          list.push({
+            id: `cnt-${division.toLowerCase()}-${code.toLowerCase()}-${prefix.toLowerCase()}-${k + 1}`,
+            name,
+            role,
+            station: code,
+            lobby: lobbyLabel,
+            district: division,
+            division,
+            phone,
+            employeeId: `${prefix}-${10100 + seq * 13}`,
+            status: (seq + k) % 4 === 3 ? 'Available' : 'On Duty',
+            shift: (seq + k) % 3 === 0 ? '08:00 – 16:00' : (seq + k) % 3 === 1 ? '16:00 – 00:00' : '00:00 – 08:00',
+            photo: null,
+            avatarVariant: isFemale
+              ? lobbyIdx % 2 === 0
+                ? 'officer-female-1'
+                : 'officer-female-2'
+              : ['officer-male-1', 'officer-male-2', 'officer-male-3'][seq % 3],
+          });
+          seq += 1;
+        }
       });
-      idx += 1;
+      lobbyIdx += 1;
     });
   });
   return list;
