@@ -9,7 +9,7 @@ import {
 } from '../data/initialData';
 import { TRANSLATIONS } from '../data/translations';
 
-const STORAGE_KEY = 'loco_rail_demo_state_v8';
+const STORAGE_KEY = 'loco_rail_demo_state_v9';
 
 const defaultState = {
   lang: 'en',
@@ -60,9 +60,18 @@ export function AppStateProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
   useEffect(() => {
-    if (!state.contacts || state.contacts.length < INITIAL_CONTACTS.length) {
-      setState((prev) => ({ ...prev, contacts: INITIAL_CONTACTS }));
-    }
+    setState((prev) => {
+      let next = prev;
+      if (!prev.contacts || prev.contacts.length < INITIAL_CONTACTS.length) {
+        next = { ...next, contacts: INITIAL_CONTACTS };
+      }
+      if (!prev.documents || !prev.documents.some((d) => d.id === 'doc-drive-secr')) {
+        const existingIds = new Set((prev.documents || []).map((d) => d.id));
+        const missingOfficial = INITIAL_DOCUMENTS.filter((d) => !existingIds.has(d.id));
+        next = { ...next, documents: [...missingOfficial, ...(prev.documents || [])] };
+      }
+      return next;
+    });
   }, []);
 
   useEffect(() => {

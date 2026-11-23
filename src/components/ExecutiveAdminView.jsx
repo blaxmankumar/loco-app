@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Download,
   Edit3,
+  ExternalLink,
   FileText,
   FolderOpen,
   Image as ImageIcon,
@@ -29,7 +30,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext';
-import { ALL_LOBBIES, ANALYTICS_DATASETS, DIVISION_LOBBIES, DIVISIONS, HELPLINES, ROLES } from '../data/initialData';
+import { ALL_LOBBIES, ANALYTICS_DATASETS, DIVISION_LOBBIES, DIVISIONS, HELPLINES, OFFICIAL_DRIVE_DOCS_URL, ROLES } from '../data/initialData';
 import { LocoLogo, OfficerAvatar } from './BrandAssets';
 import LiveTrackingMap from './LiveTrackingMap';
 import ImportantNumbersPanel from './ImportantNumbersPanel';
@@ -72,6 +73,7 @@ export default function ExecutiveAdminView({
   const [dirDivision, setDirDivision] = useState('All');
   const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
+  const [dirLimit, setDirLimit] = useState(120);
   const [analyticsMode, setAnalyticsMode] = useState('By Division');
 
   const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
@@ -94,7 +96,7 @@ export default function ExecutiveAdminView({
       if (dirLobby !== 'All' && (c.lobby || '') !== dirLobby && !dirLobby.toLowerCase().includes(`(${(c.station || '').toLowerCase()})`)) return false;
       if (dirRole !== 'All' && c.role !== dirRole) return false;
       if (!q) return true;
-      return `${c.name} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
+      return `${c.name} ${c.employeeId || ''} ${c.designation || ''} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
     });
   }, [contacts, dirDivision, dirLobby, dirRole, search]);
 
@@ -618,7 +620,7 @@ export default function ExecutiveAdminView({
                         </div>
                       </div>
                     )}
-                    {filteredContacts.map((c) => (
+                    {filteredContacts.slice(0, dirLimit).map((c) => (
                       <div key={c.id} className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${softBg}`}>
                         <div className="flex items-center gap-3 min-w-0">
                           <button onClick={() => onOpenContactModal(c)} className="relative shrink-0" title="Attach photo">
@@ -630,7 +632,7 @@ export default function ExecutiveAdminView({
                           <div className="min-w-0">
                             <p className="font-extrabold text-sm truncate">{c.name}</p>
                             <p className={`text-xs truncate ${subText}`}>
-                              {c.role} · {c.lobby || c.station} · {c.division} Div
+                              <span className="font-mono font-bold text-[#C8922A]">{c.employeeId}</span> · {c.designation || c.role} · {c.lobby || c.station}
                             </p>
                             <p className="text-xs font-mono font-semibold mt-0.5">{c.phone}</p>
                           </div>
@@ -657,6 +659,24 @@ export default function ExecutiveAdminView({
                         </div>
                       </div>
                     ))}
+                    {filteredContacts.length > dirLimit && (
+                      <div className="flex items-center justify-center gap-2 pt-2">
+                        <button
+                          onClick={() => setDirLimit((n) => n + 200)}
+                          className="px-4 py-2 rounded-full bg-[#0E2347] text-[#F3D27A] text-xs font-extrabold"
+                        >
+                          Load More (+200)
+                        </button>
+                        <button
+                          onClick={() => setDirLimit(filteredContacts.length)}
+                          className={`px-4 py-2 rounded-full border text-xs font-extrabold ${
+                            dark ? 'border-white/20 text-white' : 'border-slate-300 text-[#0E2347]'
+                          }`}
+                        >
+                          Show All ({filteredContacts.length})
+                        </button>
+                      </div>
+                    )}
                     </div>
                   )}
                 </div>
@@ -722,10 +742,38 @@ export default function ExecutiveAdminView({
                       + Upload
                     </button>
                   </div>
+                  {/* Featured Official Google Drive Repository */}
+                  <a
+                    href={OFFICIAL_DRIVE_DOCS_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-gradient-to-r from-[#0E2347] via-[#17366B] to-[#0B1C3A] text-white border border-[#D4A13B]/45 hover:brightness-105 transition"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-[#D4A13B]/20 border border-[#F3D27A]/40 text-[#F3D27A] flex items-center justify-center shrink-0">
+                        <FolderOpen className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-300">
+                          Official Google Drive Repository
+                        </p>
+                        <p className="font-extrabold text-sm truncate">
+                          SECR All Official Folders, Circulars &amp; Railway Files
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#D4A13B] to-[#F3D27A] text-[#0E2347] text-xs font-extrabold inline-flex items-center gap-1.5 shrink-0">
+                      Open Drive <ExternalLink className="w-3.5 h-3.5" />
+                    </span>
+                  </a>
                   {documents.map((d) => (
                     <div key={d.id} className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${softBg}`}>
                       <button onClick={() => onPreviewDoc(d)} className="flex items-center gap-3 text-left min-w-0">
-                        <span className="w-9 h-9 rounded-lg bg-red-600 text-white text-[10px] font-extrabold flex items-center justify-center shrink-0">
+                        <span
+                          className={`w-9 h-9 rounded-lg text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 ${
+                            d.type === 'DRV' ? 'bg-emerald-600' : d.type === 'IMG' ? 'bg-sky-500' : d.type === 'DOC' ? 'bg-[#0A66C2]' : 'bg-red-600'
+                          }`}
+                        >
                           {d.type}
                         </span>
                         <div className="min-w-0">
@@ -735,9 +783,22 @@ export default function ExecutiveAdminView({
                           </p>
                         </div>
                       </button>
-                      <button onClick={() => deleteDocument(d.id)} className="text-red-500 p-1">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {d.externalUrl && (
+                          <a
+                            href={d.externalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 rounded-lg text-[#D4A13B] hover:bg-amber-500/10"
+                            title="Open link"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        <button onClick={() => deleteDocument(d.id)} className="text-red-500 p-1">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

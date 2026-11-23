@@ -7,6 +7,7 @@ import {
   Check,
   ChevronRight,
   Download,
+  ExternalLink,
   FileText,
   FolderOpen,
   Home,
@@ -31,7 +32,7 @@ import {
   Signal,
 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext';
-import { ALL_LOBBIES, DIVISION_LOBBIES, DIVISIONS, HELPLINES, ROLES, SHIFT_ROSTER } from '../data/initialData';
+import { ALL_LOBBIES, DIVISION_LOBBIES, DIVISIONS, HELPLINES, OFFICIAL_DRIVE_DOCS_URL, ROLES, SHIFT_ROSTER } from '../data/initialData';
 import { LocoLogo, OfficerAvatar, TrainPhotoGraphic } from './BrandAssets';
 import ImportantNumbersPanel from './ImportantNumbersPanel';
 
@@ -66,6 +67,7 @@ export default function MobileCrewApp({
   const [dirDivision, setDirDivision] = useState('All');
   const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
+  const [dirLimit, setDirLimit] = useState(120);
   const [showRosterModal, setShowRosterModal] = useState(false);
 
   const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
@@ -79,7 +81,7 @@ export default function MobileCrewApp({
       if (dirLobby !== 'All' && (c.lobby || '') !== dirLobby && !dirLobby.toLowerCase().includes(`(${(c.station || '').toLowerCase()})`)) return false;
       if (dirRole !== 'All' && c.role !== dirRole) return false;
       if (!q) return true;
-      return `${c.name} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
+      return `${c.name} ${c.employeeId || ''} ${c.designation || ''} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
     });
   }, [contacts, dirDivision, dirLobby, dirRole, dirSearch]);
 
@@ -418,8 +420,15 @@ export default function MobileCrewApp({
                 </select>
               </div>
 
+              <div className="flex items-center justify-between text-[10.5px] font-bold text-slate-500 px-0.5">
+                <span>Showing {Math.min(dirLimit, filteredContacts.length)} of {filteredContacts.length} crew</span>
+                {dirLobby === 'All' && dirDivision === 'All' && (
+                  <span className="text-[#C8922A]">993 Verified BSP Crew Loaded</span>
+                )}
+              </div>
+
               <div className="space-y-2">
-                {filteredContacts.map((c) => (
+                {filteredContacts.slice(0, dirLimit).map((c) => (
                   <div
                     key={c.id}
                     className="bg-white rounded-2xl p-3 border border-slate-200/75 shadow-card flex items-center justify-between gap-2.5"
@@ -436,9 +445,11 @@ export default function MobileCrewApp({
                         </span>
                       </button>
                       <div className="min-w-0">
-                        <p className="text-[13px] font-extrabold text-[#0E2347] truncate">{c.name}</p>
-                        <p className="text-[10.5px] text-slate-500 truncate">
-                          {c.role} · <span className="font-bold text-[#0E2347]">{c.lobby || c.station}</span> · {c.division}
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[12.5px] font-extrabold text-[#0E2347] truncate">{c.name}</p>
+                        </div>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          <span className="font-mono font-bold text-[#1A3F7A]">{c.employeeId}</span> · {c.designation || c.role} · <span className="font-bold text-[#0E2347]">{c.station}</span>
                         </p>
                         <p className="text-[11px] font-mono font-semibold text-slate-600">{c.phone}</p>
                       </div>
@@ -463,6 +474,22 @@ export default function MobileCrewApp({
                     </div>
                   </div>
                 ))}
+                {filteredContacts.length > dirLimit && (
+                  <div className="flex items-center justify-center gap-2 pt-1">
+                    <button
+                      onClick={() => setDirLimit((n) => n + 200)}
+                      className="px-3.5 py-2 rounded-xl bg-[#0E2347] text-[#F3D27A] text-[11px] font-extrabold"
+                    >
+                      Load More (+200)
+                    </button>
+                    <button
+                      onClick={() => setDirLimit(filteredContacts.length)}
+                      className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-[#0E2347] text-[11px] font-extrabold"
+                    >
+                      Show All ({filteredContacts.length})
+                    </button>
+                  </div>
+                )}
               </div>
                 </>
               )}
@@ -700,6 +727,36 @@ export default function MobileCrewApp({
               </svg>
             </div>
             <div className="px-3.5 pt-2 space-y-2.5">
+              {/* Featured Official SECR Google Drive Documents Hub */}
+              <a
+                href={OFFICIAL_DRIVE_DOCS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-2xl bg-gradient-to-br from-[#0E2347] via-[#17366B] to-[#0B1C3A] text-white p-3.5 border border-[#D4A13B]/45 shadow-card hover:brightness-105 transition"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-[#D4A13B]/20 border border-[#F3D27A]/40 text-[#F3D27A] flex items-center justify-center shrink-0">
+                      <FolderOpen className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200 text-[9px] font-extrabold uppercase tracking-wider">
+                        Official Google Drive
+                      </span>
+                      <p className="text-[12.5px] font-extrabold text-white truncate mt-0.5">
+                        SECR All Folders &amp; Railway Files
+                      </p>
+                      <p className="text-[10px] text-blue-200/85 truncate">
+                        Circulars, Manuals, Safety Orders &amp; Important Docs
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D4A13B] to-[#F3D27A] text-[#0E2347] text-[10.5px] font-extrabold inline-flex items-center gap-1 shrink-0">
+                    Open <ExternalLink className="w-3 h-3" />
+                  </span>
+                </div>
+              </a>
+
               {documents.map((d) => (
                 <button
                   key={d.id}
@@ -709,7 +766,13 @@ export default function MobileCrewApp({
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span
                       className={`w-10 h-10 rounded-xl text-[10px] font-extrabold text-white flex items-center justify-center shrink-0 ${
-                        d.type === 'PDF' ? 'bg-red-600' : d.type === 'IMG' ? 'bg-sky-500' : 'bg-[#1A3F7A]'
+                        d.type === 'DRV'
+                          ? 'bg-emerald-600'
+                          : d.type === 'PDF'
+                          ? 'bg-red-600'
+                          : d.type === 'IMG'
+                          ? 'bg-sky-500'
+                          : 'bg-[#1A3F7A]'
                       }`}
                     >
                       {d.type}
@@ -721,7 +784,11 @@ export default function MobileCrewApp({
                       </p>
                     </div>
                   </div>
-                  <Download className="w-4 h-4 text-slate-400 shrink-0" />
+                  {d.externalUrl ? (
+                    <ExternalLink className="w-4 h-4 text-[#D4A13B] shrink-0" />
+                  ) : (
+                    <Download className="w-4 h-4 text-slate-400 shrink-0" />
+                  )}
                 </button>
               ))}
             </div>

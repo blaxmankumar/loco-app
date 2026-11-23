@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   Download,
   Edit3,
+  ExternalLink,
   FileText,
   FolderOpen,
   Image as ImageIcon,
@@ -34,7 +35,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext';
-import { ALL_LOBBIES, ANALYTICS_DATASETS, DIVISION_LOBBIES, DIVISIONS, HELPLINES, ROLES } from '../data/initialData';
+import { ALL_LOBBIES, ANALYTICS_DATASETS, DIVISION_LOBBIES, DIVISIONS, HELPLINES, OFFICIAL_DRIVE_DOCS_URL, ROLES } from '../data/initialData';
 import { LocoLogo, OfficerAvatar, TrainSilhouette } from './BrandAssets';
 import LiveTrackingMap from './LiveTrackingMap';
 import ImportantNumbersPanel from './ImportantNumbersPanel';
@@ -79,6 +80,7 @@ export default function AdminPortal({
   const [dirLobby, setDirLobby] = useState('All');
   const [dirRole, setDirRole] = useState('All');
   const [dirQuery, setDirQuery] = useState('');
+  const [dirLimit, setDirLimit] = useState(120);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
@@ -103,7 +105,7 @@ export default function AdminPortal({
       if (dirLobby !== 'All' && (c.lobby || '') !== dirLobby && !dirLobby.toLowerCase().includes(`(${(c.station || '').toLowerCase()})`)) return false;
       if (dirRole !== 'All' && c.role !== dirRole) return false;
       if (!q) return true;
-      return `${c.name} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
+      return `${c.name} ${c.employeeId || ''} ${c.designation || ''} ${c.station} ${c.lobby || ''} ${c.phone} ${c.division} ${c.role}`.toLowerCase().includes(q);
     });
   }, [contacts, dirDivision, dirLobby, dirRole, dirQuery, globalSearch]);
 
@@ -728,8 +730,9 @@ export default function AdminPortal({
               {dirView === 'official' ? (
                 <ImportantNumbersPanel divisionFilter={dirDivision} lobbyFilter={dirLobby} />
               ) : (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filteredContacts.map((c) => (
+                {filteredContacts.slice(0, dirLimit).map((c) => (
                   <div
                     key={c.id}
                     className="p-4 rounded-2xl border border-slate-200/80 bg-[#FAFBFD] hover:bg-white hover:shadow-cardHover transition flex flex-col justify-between gap-3"
@@ -752,7 +755,9 @@ export default function AdminPortal({
                             {c.status}
                           </span>
                         </div>
-                        <p className="text-xs font-semibold text-[#C8922A]">{c.role}</p>
+                        <p className="text-xs font-semibold text-[#C8922A]">
+                          <span className="font-mono text-[#0E2347] mr-1">{c.employeeId}</span> · {c.designation || c.role}
+                        </p>
                         <p className="text-[11.5px] text-slate-500 mt-0.5 truncate">
                           Lobby <span className="font-bold text-[#0E2347]">{c.station}</span> · {c.division}
                         </p>
@@ -797,6 +802,23 @@ export default function AdminPortal({
                   </div>
                 ))}
                 </div>
+                {filteredContacts.length > dirLimit && (
+                  <div className="flex items-center justify-center gap-2.5 pt-2">
+                    <button
+                      onClick={() => setDirLimit((n) => n + 200)}
+                      className="px-4 py-2 rounded-xl bg-[#0E2347] text-[#F3D27A] text-xs font-extrabold"
+                    >
+                      Load More (+200)
+                    </button>
+                    <button
+                      onClick={() => setDirLimit(filteredContacts.length)}
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-[#0E2347] text-xs font-extrabold hover:bg-slate-50"
+                    >
+                      Show All ({filteredContacts.length})
+                    </button>
+                  </div>
+                )}
+                </>
               )}
             </div>
           )}
@@ -914,7 +936,7 @@ export default function AdminPortal({
           {activeNav === 'documents' && (
             <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="font-extrabold text-base text-[#0E2347]">Document Vault (HRMS & Circulars)</h2>
+                <h2 className="font-extrabold text-base text-[#0E2347]">Document Vault (HRMS &amp; Circulars)</h2>
                 <button
                   onClick={onOpenUploadModal}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4A13B] to-[#E5B84B] text-[#0E2347] text-xs font-bold"
@@ -922,6 +944,30 @@ export default function AdminPortal({
                   <Upload className="w-4 h-4" /> Upload File
                 </button>
               </div>
+              {/* Official SECR Google Drive Documents Repository */}
+              <a
+                href={OFFICIAL_DRIVE_DOCS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-[#0E2347] via-[#17366B] to-[#0B1C3A] text-white border border-[#D4A13B]/45 hover:brightness-105 transition shadow-card"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-xl bg-[#D4A13B]/20 border border-[#F3D27A]/40 text-[#F3D27A] flex items-center justify-center shrink-0">
+                    <FolderOpen className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10.5px] font-extrabold uppercase tracking-wider text-emerald-300">
+                      Official SECR Google Drive Repository
+                    </p>
+                    <p className="font-extrabold text-sm truncate">
+                      SECR All Folders, Railway Manuals, Circulars &amp; Important Files
+                    </p>
+                  </div>
+                </div>
+                <span className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#D4A13B] to-[#F3D27A] text-[#0E2347] text-xs font-extrabold inline-flex items-center gap-1.5 shrink-0">
+                  Open Google Drive <ExternalLink className="w-3.5 h-3.5" />
+                </span>
+              </a>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {documents.map((d) => (
                   <div key={d.id} className="p-4 rounded-2xl border border-slate-200 bg-[#FAFBFD] flex flex-col justify-between gap-3">
@@ -936,12 +982,24 @@ export default function AdminPortal({
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                      <button
-                        onClick={() => onPreviewDoc(d)}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-[#0E2347] hover:text-[#C8922A]"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Open Preview
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => onPreviewDoc(d)}
+                          className="inline-flex items-center gap-1 text-xs font-bold text-[#0E2347] hover:text-[#C8922A]"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Open Preview
+                        </button>
+                        {d.externalUrl && (
+                          <a
+                            href={d.externalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-bold text-[#C8922A] hover:underline"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> Open Link
+                          </a>
+                        )}
+                      </div>
                       <button onClick={() => deleteDocument(d.id)} className="text-slate-400 hover:text-red-600">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1097,6 +1155,13 @@ function KpiCard({ icon: Icon, iconBg, label, value, trend, trendColor, onClick 
 
 function FileBadge({ type, large = false }) {
   const size = large ? 'w-10 h-10 text-[11px]' : 'w-7 h-7 text-[9px]';
+  if (type === 'DRV') {
+    return (
+      <span className={`${size} rounded-lg bg-emerald-600 text-white font-extrabold flex items-center justify-center shrink-0`}>
+        DRV
+      </span>
+    );
+  }
   if (type === 'PDF') {
     return (
       <span className={`${size} rounded-lg bg-red-600 text-white font-extrabold flex items-center justify-center shrink-0`}>

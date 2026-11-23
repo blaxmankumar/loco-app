@@ -4,6 +4,7 @@ import {
   Camera,
   CheckCircle2,
   Download,
+  ExternalLink,
   FileText,
   Image as ImageIcon,
   Lock,
@@ -597,7 +598,18 @@ export function DocumentPreviewModal({ doc, notice, onClose }) {
             </div>
           )}
         </div>
-        <div className="flex justify-end gap-2.5">
+        <div className="flex flex-wrap justify-end gap-2.5">
+          {!isNotice && doc.externalUrl && (
+            <a
+              href={doc.externalUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-extrabold bg-gradient-to-r from-[#D4A13B] to-[#F3D27A] text-[#0E2347] shadow-sm hover:brightness-95 transition"
+            >
+              <ExternalLink className="w-4 h-4" />
+              {doc.previewType === 'drive' ? 'Open Google Drive Folder' : 'Open Original PDF'}
+            </a>
+          )}
           <button
             onClick={handleDownload}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-[#0E2347] text-white hover:bg-[#17366B]"

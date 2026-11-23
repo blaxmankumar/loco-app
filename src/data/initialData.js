@@ -1,3 +1,8 @@
+import { BSP_OFFICIAL_CREW_RAW } from './bspCrewDirectory.js';
+
+export const OFFICIAL_DRIVE_DOCS_URL =
+  'https://drive.google.com/drive/folders/1VEjLZoPewOxt1aJbtotNhF7ZOjX27yUI';
+
 export const DISTRICTS = [
   'Balod', 'Baloda Bazar', 'Balrampur', 'Bastar', 'Bemetara', 'Bijapur', 'Bilaspur',
   'Dantewada', 'Dhamtari', 'Durg', 'Gariaband', 'Gaurela-Pendra-Marwahi', 'Janjgir-Champa',
@@ -205,11 +210,39 @@ const LAST_NAMES = [
   'Mahanta', 'Gedam', 'Choudhary', 'Singh', 'Agrawal', 'Bisen', 'Tirkey', 'Chauhan',
 ];
 
+const FEMALE_HINT_RE = /\b(RASHMI|GEETA|SEEMA|MANJUSHA|SHABNAM|SUJATA|PRIYANKA|GEETMALA|PRAGYA|KAJAL|USHA|YASMEEN|SUSHMITA|KHUSHBU|ADITI|SMRITI|BHAVNA|VARSHA|ANNI|NUTAN|UPASNA|KIRTI|AMRITA|RAKHI)\b/i;
+
 function buildFullSecrContacts() {
   const list = [];
   const majorLobbies = new Set(['BSP', 'R', 'DURG', 'NITR', 'KRBA', 'RIG', 'KHS', 'USL', 'G']);
   let lobbyIdx = 0;
   let seq = 0;
+
+  // 1. Inject all 993 official Bilaspur (BSP) crew records from BSP LP Phone List PDF first
+  BSP_OFFICIAL_CREW_RAW.forEach(([crewId, name, role, designation, phone], idx) => {
+    const isFemale = FEMALE_HINT_RE.test(name);
+    list.push({
+      id: `cnt-bsp-official-${crewId.toLowerCase()}`,
+      name,
+      role,
+      designation,
+      station: 'BSP',
+      lobby: 'Bilaspur (BSP)',
+      district: 'Bilaspur',
+      division: 'Bilaspur',
+      phone,
+      employeeId: crewId,
+      status: idx % 5 === 4 ? 'Available' : 'On Duty',
+      shift: idx % 3 === 0 ? '08:00 – 16:00' : idx % 3 === 1 ? '16:00 – 00:00' : '00:00 – 08:00',
+      photo: null,
+      verified: true,
+      avatarVariant: isFemale
+        ? idx % 2 === 0
+          ? 'officer-female-1'
+          : 'officer-female-2'
+        : ['officer-male-1', 'officer-male-2', 'officer-male-3'][idx % 3],
+    });
+  });
 
   DIVISIONS.forEach((division) => {
     (DIVISION_LOBBIES[division] || []).forEach((lobbyLabel) => {
@@ -217,19 +250,26 @@ function buildFullSecrContacts() {
       const code = m ? m[1] : 'BSP';
       const basePhone = LOBBY_OFFICIAL_PHONES[code] || '9752441439';
       const isMajor = majorLobbies.has(code);
-      const rolePlan = isMajor
-        ? [
-            { role: 'Loco Pilot', prefix: 'LP', count: 15 },
-            { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 15 },
-            { role: 'Train Manager', prefix: 'TM', count: 6 },
-            { role: 'Station Controller', prefix: 'SC', count: 4 },
-          ]
-        : [
-            { role: 'Loco Pilot', prefix: 'LP', count: 8 },
-            { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 8 },
-            { role: 'Train Manager', prefix: 'TM', count: 4 },
-            { role: 'Station Controller', prefix: 'SC', count: 3 },
-          ];
+      const rolePlan =
+        code === 'BSP'
+          ? [
+              // BSP LP & ALP already loaded from official 993-record PDF; keep TM & SC
+              { role: 'Train Manager', prefix: 'TM', count: 6 },
+              { role: 'Station Controller', prefix: 'SC', count: 4 },
+            ]
+          : isMajor
+          ? [
+              { role: 'Loco Pilot', prefix: 'LP', count: 15 },
+              { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 15 },
+              { role: 'Train Manager', prefix: 'TM', count: 6 },
+              { role: 'Station Controller', prefix: 'SC', count: 4 },
+            ]
+          : [
+              { role: 'Loco Pilot', prefix: 'LP', count: 8 },
+              { role: 'Assistant Loco Pilot', prefix: 'ALP', count: 8 },
+              { role: 'Train Manager', prefix: 'TM', count: 4 },
+              { role: 'Station Controller', prefix: 'SC', count: 3 },
+            ];
 
       rolePlan.forEach(({ role, prefix, count }) => {
         for (let k = 0; k < count; k += 1) {
@@ -323,6 +363,38 @@ export const INITIAL_NOTICES = [
 ];
 
 export const INITIAL_DOCUMENTS = [
+  {
+    id: 'doc-drive-secr',
+    fileName: 'SECR Official Railway Documents & Circulars (Google Drive)',
+    description: 'All official railway folders, safety rulebooks, circulars, manuals & important files on Google Drive',
+    category: 'Circulars',
+    type: 'DRV',
+    size: 'Cloud Folder',
+    uploader: 'SECR Admin',
+    uploaderFull: 'SECR Official Drive Repository',
+    status: 'Live Sync',
+    date: 'Updated Today',
+    previewType: 'drive',
+    externalUrl: OFFICIAL_DRIVE_DOCS_URL,
+    summary:
+      'Complete SECR Railway official Google Drive repository containing multiple folders and important railway operational files, circulars, manuals, and reference documents. Tap "Open in Google Drive" to browse all folders and files directly.',
+  },
+  {
+    id: 'doc-bsp-phone-pdf',
+    fileName: 'BSP LP Phone List — Bilaspur (993 Crew).pdf',
+    description: 'Official 31-page Bilaspur (BSP) Lobby Loco Pilot, Sr. ALP & Shunter Phone Directory',
+    category: 'Duty Orders',
+    type: 'PDF',
+    size: '782 KB',
+    uploader: 'BSP Lobby',
+    uploaderFull: 'Bilaspur Crew Lobby (SECR)',
+    status: 'Verified',
+    date: 'Updated Today',
+    previewType: 'pdf',
+    externalUrl: '/BSP_LP_Phone_List.pdf',
+    summary:
+      'Official 31-page BSP LP Phone List covering all 993 Bilaspur (BSP) Lobby Loco Pilots, Asst. / Sr. Asst. Loco Pilots, and Shunters with Crew IDs and direct Call / WhatsApp numbers (all 993 contacts are also live inside Crew Directory).',
+  },
   {
     id: 'doc-1',
     fileName: 'Operations Circular 04.pdf',
