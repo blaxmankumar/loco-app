@@ -3,20 +3,20 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Paste your Firebase Web App config here (or set VITE_FIREBASE_* in .env.local)
-// Get it from: https://console.firebase.google.com -> Project Settings -> Your apps -> Web app
+// Live Firebase Web App configuration for LOCO (project: loco-app-89995)
 export const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDrx4UWeAqDMsWWYvY-0NYDGb77VUNJ1R4',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'loco-app-89995.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'loco-app-89995',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'loco-app-89995.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '204150532512',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:204150532512:web:78357541e4b232702e5cc5',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-SGT439F21B',
 };
 
 // Authorized Admin email(s) — ONLY these accounts get Admin Control Center access
 export const ADMIN_EMAILS = (
-  import.meta.env.VITE_LOCO_ADMIN_EMAILS || 'admin@loco.secr.in'
+  import.meta.env.VITE_LOCO_ADMIN_EMAILS || 'kumarblaxman@gmail.com'
 )
   .split(',')
   .map((s) => s.trim().toLowerCase())

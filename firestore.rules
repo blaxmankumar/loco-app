@@ -5,33 +5,40 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isAdminEmail() {
+      return isSignedIn() && request.auth.token.email == 'kumarblaxman@gmail.com';
+    }
+
     function userDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      return isSignedIn() && (
+      return isAdminEmail() || (
+        isSignedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         userDoc().isAdmin == true
       );
     }
 
     function isApproved() {
-      return isSignedIn() && (
-        isAdmin() ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         userDoc().approved == true)
+      return isAdmin() || (
+        isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        userDoc().approved == true
       );
     }
 
     // Staff profiles & approval status
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
-      // New crew registration: CANNOT self-approve or grant themselves admin!
-      allow create: if isSignedIn()
+      // Admin can create own admin profile; new crew CANNOT self-approve or grant themselves admin
+      allow create: if isAdminEmail() || (
+        isSignedIn()
         && request.auth.uid == uid
         && request.resource.data.approved == false
-        && request.resource.data.isAdmin == false;
+        && request.resource.data.isAdmin == false
+      );
       // Only Admin can approve/reject/revoke users or change permissions
       allow update, delete: if isAdmin();
     }

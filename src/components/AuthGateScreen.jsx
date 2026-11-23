@@ -10,6 +10,7 @@ import {
   UserPlus,
 } from 'lucide-react';
 import { useAppState } from '../context/AppStateContext';
+import { isAdminEmail } from '../firebase';
 import { DIVISION_LOBBIES, DIVISIONS, INITIAL_CONTACTS, ROLES } from '../data/initialData';
 import { LocoLogo } from './BrandAssets';
 
@@ -33,6 +34,8 @@ export default function AuthGateScreen() {
   const [lobby, setLobby] = useState('Bilaspur (BSP)');
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState('');
+
+  const adminDetected = isAdminEmail(identifier);
 
   // Auto-lookup in official 993 Bilaspur (BSP) crew directory when 10 digits typed
   const bspMatch = useMemo(() => {
@@ -205,7 +208,9 @@ export default function AuthGateScreen() {
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-[11px] font-bold text-blue-200 mb-1">
-              {tab === 'login' ? '10-Digit Mobile Number (or Admin Email)' : '10-Digit Mobile Number *'}
+              {tab === 'login'
+                ? '10-Digit Mobile Number (or Admin Email)'
+                : '10-Digit Mobile Number (or Admin Email) *'}
             </label>
             <div className="relative">
               <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -213,10 +218,20 @@ export default function AuthGateScreen() {
                 required
                 value={identifier}
                 onChange={(e) => handleIdentifierChange(e.target.value)}
-                placeholder={tab === 'login' ? 'e.g. 9752441638 or admin@loco.secr.in' : '10-digit railway mobile number'}
+                placeholder={
+                  tab === 'login'
+                    ? 'e.g. 9752441638 or kumarblaxman@gmail.com'
+                    : '10-digit mobile number (or Admin email)'
+                }
                 className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white text-[#0E2347] text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-[#F3D27A]"
               />
             </div>
+            {adminDetected && (
+              <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-[#D4A13B]/25 border border-[#F3D27A]/60 text-[#F3D27A] text-[11px] font-extrabold flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                <span>Authorized LOCO System Admin Account</span>
+              </div>
+            )}
             {bspMatch && (
               <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-[11px] font-bold flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />

@@ -4,14 +4,17 @@ service firebase.storage {
     function isSignedIn() {
       return request.auth != null;
     }
+    function isAdminEmail() {
+      return isSignedIn() && request.auth.token.email == 'kumarblaxman@gmail.com';
+    }
     function userData() {
       return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
     }
     function isAdmin() {
-      return isSignedIn() && userData().isAdmin == true;
+      return isAdminEmail() || (isSignedIn() && userData().isAdmin == true);
     }
     function isApproved() {
-      return isSignedIn() && (userData().approved == true || userData().isAdmin == true);
+      return isAdmin() || (isSignedIn() && userData().approved == true);
     }
 
     // Official Documents & Circulars Vault
