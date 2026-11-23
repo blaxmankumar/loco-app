@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Bell,
@@ -51,6 +51,7 @@ export default function MobileCrewApp({
     isFirebaseConfigured,
     currentUser,
     firebaseLogout,
+    pendingApprovals,
     contacts,
     notices,
     documents,
@@ -73,6 +74,21 @@ export default function MobileCrewApp({
   const [dirRole, setDirRole] = useState('All');
   const [dirLimit, setDirLimit] = useState(120);
   const [showRosterModal, setShowRosterModal] = useState(false);
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentHour(new Date().getHours()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const greetingKey =
+    currentHour >= 5 && currentHour < 12
+      ? 'goodMorning'
+      : currentHour >= 12 && currentHour < 17
+      ? 'goodAfternoon'
+      : currentHour >= 17 && currentHour < 21
+      ? 'goodEvening'
+      : 'goodNight';
 
   const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
 
@@ -137,18 +153,30 @@ export default function MobileCrewApp({
                     <Search className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => setTab('notices')}
+                    onClick={() => {
+                      if (onSwitchToAdmin && pendingApprovals.length > 0) {
+                        onSwitchToAdmin();
+                      } else {
+                        setTab('notices');
+                      }
+                    }}
                     className="relative w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
                   >
                     <Bell className="w-4 h-4" />
-                    <span className="w-2 h-2 rounded-full bg-[#F3D27A] absolute top-1.5 right-1.5" />
+                    {currentUser?.isAdmin && pendingApprovals.length > 0 ? (
+                      <span className="min-w-[16px] h-[16px] px-1 rounded-full bg-red-600 text-white text-[9px] font-extrabold flex items-center justify-center absolute -top-1 -right-1">
+                        {pendingApprovals.length}
+                      </span>
+                    ) : (
+                      <span className="w-2 h-2 rounded-full bg-[#F3D27A] absolute top-1.5 right-1.5" />
+                    )}
                   </button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-[21px] font-extrabold leading-tight">{t('goodMorning')}</h2>
+                  <h2 className="text-[21px] font-extrabold leading-tight">{t(greetingKey)}</h2>
                   <p className="text-[11.5px] text-blue-200/90 mt-0.5">{t('keepSmooth')} 🚆</p>
                   <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-[#E5B84B] to-[#F3D27A] text-[#0E2347] text-[10.5px] font-extrabold shadow-sm">
@@ -178,6 +206,27 @@ export default function MobileCrewApp({
             </div>
 
             <div className="px-3.5 -mt-1 space-y-3">
+              {/* Live Admin Approval Notification Banner (visible ONLY to Admin!) */}
+              {onSwitchToAdmin && pendingApprovals.length > 0 && (
+                <button
+                  onClick={onSwitchToAdmin}
+                  className="w-full rounded-2xl bg-gradient-to-r from-red-600 to-amber-600 text-white px-3.5 py-2.5 shadow-md flex items-center justify-between gap-2 animate-pulse"
+                >
+                  <div className="flex items-center gap-2 min-w-0 text-left">
+                    <Bell className="w-4 h-4 shrink-0 text-[#F3D27A]" />
+                    <div className="min-w-0">
+                      <p className="text-[11.5px] font-extrabold truncate">
+                        🔔 {pendingApprovals.length} New Staff Approval Request{pendingApprovals.length > 1 ? 's' : ''}
+                      </p>
+                      <p className="text-[10px] text-white/90 truncate">
+                        Tap to open Admin Panel &amp; Approve/Reject now
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 shrink-0" />
+                </button>
+              )}
+
               {/* 4-Stat Strip */}
               <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 grid grid-cols-4 divide-x divide-slate-100 py-2.5 px-1">
                 <StatCell icon={Users} iconColor="text-[#1A3F7A]" num={contacts.length} label={t('activeCrew')} onClick={() => setTab('directory')} />
@@ -307,21 +356,26 @@ export default function MobileCrewApp({
 
                 <div className="rounded-2xl bg-white border border-slate-200/70 p-3 shadow-card flex flex-col justify-between">
                   <div className="flex items-center gap-1 text-[11.5px] font-extrabold text-[#0E2347] mb-2">
-                    <span className="text-red-500">🚨</span> Emergency Helplines
+                    <span className="text-red-500">🚨</span> {t('emergencyHelplines')}
                   </div>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {HELPLINES.slice(0, 3).map((h) => (
+                  <div className="flex flex-col gap-1.5">
+                    {HELPLINES.slice(0, 4).map((h) => (
                       <a
                         key={h.number}
                         href={`tel:${h.number}`}
-                        className={`rounded-xl py-2.5 px-1 flex flex-col items-center justify-center gap-1 text-white font-extrabold shadow-sm active:scale-95 transition ${
+                        className={`rounded-xl py-1.5 px-2.5 flex items-center justify-between gap-2 text-white font-bold shadow-sm active:scale-95 transition ${
                           h.color === 'gold'
-                            ? 'bg-gradient-to-b from-[#D9A741] to-[#B68321]'
-                            : 'bg-gradient-to-b from-[#1A3C75] to-[#0E2347]'
+                            ? 'bg-gradient-to-r from-[#D9A741] to-[#B68321]'
+                            : h.color === 'red'
+                            ? 'bg-gradient-to-r from-red-600 to-red-700'
+                            : 'bg-gradient-to-r from-[#1A3C75] to-[#0E2347]'
                         }`}
                       >
-                        <Phone className="w-3.5 h-3.5" />
-                        <span className="text-[12px] leading-none">{h.number}</span>
+                        <span className="text-[10px] truncate">{h.name.split(' (')[0]}</span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold shrink-0">
+                          <Phone className="w-3 h-3" />
+                          {h.number}
+                        </span>
                       </a>
                     ))}
                   </div>
@@ -884,26 +938,26 @@ export default function MobileCrewApp({
                 </button>
               </div>
 
-              <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-card space-y-2.5">
+              <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-card space-y-2">
                 <h3 className="text-xs font-extrabold text-[#0E2347] uppercase tracking-wider">{t('emergencyHelplines')}</h3>
-                {HELPLINES.map((h) => (
-                  <a
-                    key={h.number}
-                    href={`tel:${h.number}`}
-                    className="flex items-center justify-between py-2 border-b last:border-b-0 border-slate-100"
-                  >
-                    <div>
-                      <p className="text-xs font-bold text-[#0E2347]">{h.name}</p>
-                      <p className="text-[10.5px] text-slate-500">{h.desc}</p>
-                    </div>
-                    <span className="px-3 py-1 rounded-full bg-[#0E2347] text-[#F3D27A] text-xs font-extrabold">
-                      {h.number}
-                    </span>
-                  </a>
-                ))}
+                <div className="flex flex-col divide-y divide-slate-100">
+                  {HELPLINES.map((h) => (
+                    <a
+                      key={h.number}
+                      href={`tel:${h.number}`}
+                      className="flex items-center justify-between gap-2 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-[#0E2347] truncate">{h.name}</p>
+                        <p className="text-[10.5px] text-slate-500 truncate">{h.desc}</p>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-[#0E2347] text-[#F3D27A] text-xs font-extrabold shrink-0">
+                        {h.number}
+                      </span>
+                    </a>
+                  ))}
+                </div>
               </div>
-
-              <ImportantNumbersPanel compact />
 
               <button
                 onClick={isFirebaseConfigured && currentUser ? firebaseLogout : onOpenAuth}

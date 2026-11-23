@@ -532,17 +532,11 @@ export const INITIAL_INCIDENTS = [
 ];
 
 export const HELPLINES = [
-  { id: 'hl-1', name: 'Railway Helpline (RailMadad)', number: '139', desc: '24×7 Integrated Railway Enquiry, Safety & Assistance', primary: true, color: 'navy' },
+  { id: 'hl-1', name: 'Railway Helpline (RailMadad)', number: '139', desc: '24×7 Integrated Railway Enquiry & Assistance', primary: true, color: 'navy' },
   { id: 'hl-2', name: 'Railway Security (RPF)', number: '182', desc: '24×7 RPF Security Emergency & Onboard Support', primary: true, color: 'navy' },
-  { id: 'hl-3', name: 'Emergency Response (ERSS)', number: '112', desc: 'Chhattisgarh All-in-One Emergency Response', primary: true, color: 'gold' },
-  { id: 'hl-4', name: 'Railway Accident Helpline', number: '1072', desc: 'Official Indian Railways Accident & Relief Control', primary: false, color: 'red' },
+  { id: 'hl-3', name: 'Railway Accident Helpline', number: '1072', desc: 'Official Indian Railways Accident & Relief Control', primary: true, color: 'red' },
+  { id: 'hl-4', name: 'Emergency Response (ERSS)', number: '112', desc: 'All-in-One Police, Ambulance & Fire Emergency', primary: true, color: 'gold' },
   { id: 'hl-5', name: 'SECR Bilaspur Control (BSP)', number: '07752-247202', desc: 'Bilaspur Division HQ Control & Crew Emergency Desk', primary: false, color: 'navy' },
-  { id: 'hl-6', name: 'SECR Raipur Control (R)', number: '0771-2252200', desc: 'Raipur Division Railway Control & Station Enquiry', primary: false, color: 'navy' },
-  { id: 'hl-7', name: 'SECR Nagpur Control (NGP)', number: '0712-2564141', desc: 'Nagpur Division Railway Control Desk', primary: false, color: 'navy' },
-  { id: 'hl-8', name: 'Railway Vigilance Helpline', number: '155210', desc: 'Indian Railways Vigilance & Integrity Desk', primary: false, color: 'gold' },
-  { id: 'hl-9', name: 'Ambulance (Sanjeevani 108)', number: '108', desc: 'Chhattisgarh 24×7 Medical & Accident Relief', primary: false, color: 'red' },
-  { id: 'hl-10', name: 'Police Control Room', number: '100', desc: 'Chhattisgarh Police Emergency Dispatch', primary: false, color: 'navy' },
-  { id: 'hl-11', name: 'Fire Brigade', number: '101', desc: '24×7 Fire & Rescue Emergency Services', primary: false, color: 'red' },
 ];
 
 export const ANALYTICS_DATASETS = {

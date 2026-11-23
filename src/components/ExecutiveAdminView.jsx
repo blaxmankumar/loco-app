@@ -75,6 +75,7 @@ export default function ExecutiveAdminView({
   const [dirRole, setDirRole] = useState('All');
   const [dirLimit, setDirLimit] = useState(120);
   const [analyticsMode, setAnalyticsMode] = useState('By Division');
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const visibleLobbies = dirDivision === 'All' ? ALL_LOBBIES : DIVISION_LOBBIES[dirDivision] || [];
 
@@ -172,19 +173,90 @@ export default function ExecutiveAdminView({
             })}
           </nav>
 
-          {/* Right: Admin Avatar */}
-          <button
-            onClick={onOpenAuth}
-            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition ${
-              dark ? 'border-white/10 hover:bg-white/10' : 'border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            <OfficerAvatar name="Admin" variant="admin-chief" size={32} ring />
-            <div className="text-left leading-tight hidden sm:block">
-              <div className="text-xs font-extrabold">Admin</div>
-              <div className={`text-[10px] ${subText}`}>SECR Control</div>
+          {/* Right: Live Notification Bell + Admin Avatar */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen((v) => !v)}
+                className={`relative w-10 h-10 rounded-xl border flex items-center justify-center transition ${
+                  dark ? 'border-white/15 bg-white/5 hover:bg-white/10 text-white' : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-[#0E2347]'
+                }`}
+                title="Approval Notifications & Alerts"
+              >
+                <Bell className="w-4 h-4" />
+                {pendingApprovals.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-extrabold flex items-center justify-center animate-bounce">
+                    {pendingApprovals.length}
+                  </span>
+                )}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white text-[#0E2347] rounded-2xl shadow-2xl border border-slate-200 p-3.5 z-50 space-y-2.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-xs font-extrabold">
+                      🔔 Notifications ({pendingApprovals.length} Pending Approvals)
+                    </span>
+                    <button onClick={() => setNotifOpen(false)} className="text-xs text-slate-400 hover:text-slate-600">
+                      Close
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                    {pendingApprovals.length === 0 ? (
+                      <p className="text-xs text-slate-500 py-3 text-center">No pending staff approval requests right now.</p>
+                    ) : (
+                      pendingApprovals.map((u) => (
+                        <div key={u.id} className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-extrabold text-[#0E2347] truncate">{u.name}</p>
+                            <span className="text-[10px] text-amber-700 font-bold shrink-0">{u.requestedAt}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600">
+                            {u.role} · {u.employeeId || u.phone} · {u.lobby || u.division}
+                          </p>
+                          <div className="flex gap-1.5">
+                            <button
+                              onClick={() => approveUser(u.id)}
+                              className="flex-1 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700"
+                            >
+                              ✓ Approve
+                            </button>
+                            <button
+                              onClick={() => rejectUser(u.id)}
+                              className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 text-[11px] font-bold hover:bg-red-600 hover:text-white"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setNotifOpen(false);
+                      setActiveTab('approvals');
+                    }}
+                    className="w-full py-2 rounded-xl bg-[#0E2347] text-[#F3D27A] text-xs font-extrabold"
+                  >
+                    Open Full Approvals Queue →
+                  </button>
+                </div>
+              )}
             </div>
-          </button>
+
+            <button
+              onClick={onOpenAuth}
+              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition ${
+                dark ? 'border-white/10 hover:bg-white/10' : 'border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <OfficerAvatar name="Admin" variant="admin-chief" size={32} ring />
+              <div className="text-left leading-tight hidden sm:block">
+                <div className="text-xs font-extrabold">Admin</div>
+                <div className={`text-[10px] ${subText}`}>SECR Control</div>
+              </div>
+            </button>
+          </div>
         </div>
 
         {/* Tablet/Mobile Horizontal Scroll Nav */}

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   BatteryCharging,
   Compass,
+  ExternalLink,
   Gauge,
   MapPin,
   MessageCircle,
@@ -13,6 +14,7 @@ import {
   Radio,
   ShieldCheck,
   Signal,
+  Smartphone,
   TrainFront,
   Clock,
 } from 'lucide-react';
@@ -168,11 +170,30 @@ function interpolateRoute(route, t) {
   };
 }
 
+function formatAgo(ms) {
+  if (!ms) return 'Just now';
+  const sec = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (sec < 10) return 'Just now';
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  return `${Math.round(min / 60)}h ago`;
+}
+
 export default function LiveTrackingMap() {
-  const { driverGpsEnabled, realCoords, contacts, notify, t } = useAppState();
+  const { driverGpsEnabled, realCoords, liveCrewLocations = [], contacts, notify, t } = useAppState();
   const [liveSim, setLiveSim] = useState(true);
   const [drivers, setDrivers] = useState(INITIAL_TRACKED_DRIVERS);
-  const [selectedId, setSelectedId] = useState('drv-1');
+  const [selectedLiveUid, setSelectedLiveUid] = useState(null);
+  const [selectedDemoId, setSelectedDemoId] = useState('drv-1');
+  const [mapMode, setMapMode] = useState('auto'); // 'auto' | 'google' | 'corridor'
+
+  // Auto-select the first real live GPS crew member as soon as any phone broadcasts!
+  useEffect(() => {
+    if (liveCrewLocations.length > 0 && !selectedLiveUid) {
+      setSelectedLiveUid(liveCrewLocations[0].id);
+    }
+  }, [liveCrewLocations, selectedLiveUid]);
 
   useEffect(() => {
     if (!liveSim) return;
@@ -193,14 +214,30 @@ export default function LiveTrackingMap() {
     return () => clearInterval(timer);
   }, [liveSim]);
 
-  // Match custom contact photos if uploaded in Crew Directory!
-  const getDriverPhoto = (name) => contacts.find((c) => c.name.toLowerCase() === name.toLowerCase())?.photo || null;
+  const getDriverPhoto = (name) =>
+    contacts.find((c) => c.name.toLowerCase() === (name || '').toLowerCase())?.photo || null;
 
-  const selectedDriver = drivers.find((d) => d.id === selectedId) || drivers[0];
-  const selectedPos = interpolateRoute(selectedDriver.route, selectedDriver.progress);
-  const isSelfDriver = selectedDriver.id === 'drv-1';
-  const displayLat = isSelfDriver && realCoords ? realCoords.lat.toFixed(4) : selectedPos.lat;
-  const displayLng = isSelfDriver && realCoords ? realCoords.lng.toFixed(4) : selectedPos.lng;
+  const selectedLiveCrew = useMemo(
+    () => liveCrewLocations.find((c) => c.id === selectedLiveUid) || null,
+    [liveCrewLocations, selectedLiveUid]
+  );
+
+  const selectedDemoDriver = drivers.find((d) => d.id === selectedDemoId) || drivers[0];
+  const selectedDemoPos = interpolateRoute(selectedDemoDriver.route, selectedDemoDriver.progress);
+
+  const showingRealCrew = Boolean(selectedLiveCrew) && mapMode !== 'corridor';
+  const activeLat = selectedLiveCrew
+    ? Number(selectedLiveCrew.lat).toFixed(5)
+    : selectedDemoDriver.id === 'drv-1' && realCoords
+    ? realCoords.lat.toFixed(5)
+    : selectedDemoPos.lat;
+  const activeLng = selectedLiveCrew
+    ? Number(selectedLiveCrew.lng).toFixed(5)
+    : selectedDemoDriver.id === 'drv-1' && realCoords
+    ? realCoords.lng.toFixed(5)
+    : selectedDemoPos.lng;
+
+  const activeLiveCount = liveCrewLocations.filter((c) => c.gpsEnabled).length;
 
   return (
     <div className="space-y-5">
@@ -211,8 +248,10 @@ export default function LiveTrackingMap() {
             <Radio className="w-5 h-5 animate-pulse" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-slate-500">{t('activeGpsFeeds')}</p>
-            <p className="text-xl font-extrabold text-[#0E2347]">{driverGpsEnabled ? drivers.length : drivers.length - 1} Drivers</p>
+            <p className="text-[11px] font-bold text-slate-500">Live Phone GPS Feeds</p>
+            <p className="text-xl font-extrabold text-[#0E2347]">
+              {activeLiveCount} Live {activeLiveCount === 1 ? 'Crew' : 'Crews'}
+            </p>
           </div>
         </div>
         <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-4 flex items-center gap-3">
@@ -221,7 +260,7 @@ export default function LiveTrackingMap() {
           </div>
           <div>
             <p className="text-[11px] font-bold text-slate-500">{t('stationGeofences')}</p>
-            <p className="text-xl font-extrabold text-[#0E2347]">7 Active Lobbies</p>
+            <p className="text-xl font-extrabold text-[#0E2347]">27 SECR Lobbies</p>
           </div>
         </div>
         <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-4 flex items-center gap-3">
@@ -229,9 +268,9 @@ export default function LiveTrackingMap() {
             <Gauge className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-slate-500">{t('avgSpeed')}</p>
+            <p className="text-[11px] font-bold text-slate-500">Selected Speed</p>
             <p className="text-xl font-extrabold text-[#0E2347]">
-              {Math.round(drivers.reduce((s, d) => s + d.speed, 0) / drivers.length)} km/h
+              {selectedLiveCrew ? `${selectedLiveCrew.speedKmh || 0} km/h` : `${selectedDemoDriver.speed} km/h`}
             </p>
           </div>
         </div>
@@ -248,345 +287,379 @@ export default function LiveTrackingMap() {
 
       {/* Main Map + Telemetry Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Interactive Corridor Map */}
+        {/* Interactive Map Column */}
         <section className="lg:col-span-8 bg-white rounded-2xl shadow-card border border-slate-200/70 overflow-hidden flex flex-col">
           <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="font-extrabold text-[15px] text-[#0E2347] flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-[#D4A13B]" />
-                {t('mapTitle')}
+                {showingRealCrew
+                  ? `LIVE GPS: ${selectedLiveCrew.name} (${selectedLiveCrew.employeeId || selectedLiveCrew.phone})`
+                  : t('mapTitle')}
               </h2>
               <p className="text-[11.5px] text-slate-500">
-                {t('mapSub')}
+                {showingRealCrew
+                  ? `Real-time phone coordinates (${activeLat}°N, ${activeLng}°E) · Last ping: ${formatAgo(selectedLiveCrew.updatedAtMs)}`
+                  : t('mapSub')}
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                Live Telemetry
-              </span>
+            <div className="flex items-center gap-1.5">
               <button
-                onClick={() => setLiveSim((v) => !v)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0E2347] text-white text-xs font-bold hover:bg-[#17366B]"
+                onClick={() => setMapMode('google')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                  mapMode === 'google' || (mapMode === 'auto' && selectedLiveCrew)
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
               >
-                {liveSim ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                {liveSim ? t('pauseFeed') : t('resumeFeed')}
+                Live Google Map
               </button>
+              <button
+                onClick={() => setMapMode('corridor')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                  mapMode === 'corridor' || (mapMode === 'auto' && !selectedLiveCrew)
+                    ? 'bg-[#0E2347] text-[#F3D27A]'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                SECR Corridor
+              </button>
+              {mapMode === 'corridor' && (
+                <button
+                  onClick={() => setLiveSim((v) => !v)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold"
+                >
+                  {liveSim ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="relative bg-gradient-to-br from-[#0B1C3A] via-[#102852] to-[#0C2144] p-4 flex-1 min-h-[340px]">
-            {/* Grid Background Pattern */}
-            <svg viewBox="0 0 700 320" className="w-full h-full">
-              <defs>
-                <pattern id="mapGrid" width="35" height="35" patternUnits="userSpaceOnUse">
-                  <path d="M 35 0 L 0 0 0 35" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
-                </pattern>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="3.5" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <rect width="700" height="320" fill="url(#mapGrid)" rx="12" />
-
-              {/* Caution Zone Highlight */}
-              <circle cx="518" cy="95" r="34" fill="rgba(245, 158, 11, 0.14)" stroke="#F59E0B" strokeDasharray="4 4" strokeWidth="1.5" />
-              <text x="556" y="88" fill="#FCD34D" fontSize="9.5" fontWeight="700">Caution Zone B-12</text>
-
-              {/* Main Railway Corridor Lines */}
-              <path
-                d="M 75 265 L 170 235 L 270 200 L 405 150 L 515 135 L 635 165"
-                fill="none"
-                stroke="#3B69B2"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                opacity="0.45"
+          {mapMode === 'google' || (mapMode === 'auto' && selectedLiveCrew) ? (
+            <div className="relative flex-1 min-h-[380px] bg-slate-100 flex flex-col">
+              <iframe
+                title="Live Crew GPS Map"
+                src={`https://maps.google.com/maps?q=${activeLat},${activeLng}&z=15&output=embed`}
+                className="w-full flex-1 min-h-[360px] border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
               />
-              <path
-                d="M 75 265 L 170 235 L 270 200 L 405 150 L 515 135 L 635 165"
-                fill="none"
-                stroke="#F3D27A"
-                strokeWidth="2"
-                strokeDasharray="6 6"
-                strokeLinecap="round"
-              />
-              {/* Champa - Korba Branch */}
-              <path
-                d="M 515 135 L 525 55"
-                fill="none"
-                stroke="#3B69B2"
-                strokeWidth="5"
-                strokeLinecap="round"
-                opacity="0.45"
-              />
-              <path
-                d="M 515 135 L 525 55"
-                fill="none"
-                stroke="#F3D27A"
-                strokeWidth="1.8"
-                strokeDasharray="5 5"
-              />
+              <div className="bg-[#0E2347] text-white px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-mono font-bold text-[#F3D27A]">
+                  📍 {activeLat}°N, {activeLng}°E
+                  {selectedLiveCrew?.accuracy ? ` (±${selectedLiveCrew.accuracy}m)` : ''}
+                </span>
+                <a
+                  href={`https://www.google.com/maps?q=${activeLat},${activeLng}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gradient-to-r from-[#D4A13B] to-[#F3D27A] text-[#0E2347] font-extrabold text-[11px]"
+                >
+                  Open Exact Pin in Google Maps <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="relative bg-gradient-to-br from-[#0B1C3A] via-[#102852] to-[#0C2144] p-4 flex-1 min-h-[340px]">
+              <svg viewBox="0 0 700 320" className="w-full h-full">
+                <defs>
+                  <pattern id="mapGrid" width="35" height="35" patternUnits="userSpaceOnUse">
+                    <path d="M 35 0 L 0 0 0 35" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                  </pattern>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="3.5" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <rect width="700" height="320" fill="url(#mapGrid)" rx="12" />
 
-              {/* Station Geofence Nodes */}
-              {STATIONS.map((s) => (
-                <g key={s.code}>
-                  <circle cx={s.x} cy={s.y} r="13" fill="rgba(212, 161, 59, 0.12)" stroke="rgba(243, 210, 122, 0.45)" strokeWidth="1" />
-                  <circle cx={s.x} cy={s.y} r="4.5" fill="#FFFFFF" stroke="#0E2347" strokeWidth="2" />
-                  <text x={s.x} y={s.y + 24} textAnchor="middle" fill="#FFFFFF" fontSize="10.5" fontWeight="800">
-                    {s.code}
-                  </text>
-                  <text x={s.x} y={s.y + 35} textAnchor="middle" fill="#93B4E8" fontSize="8.5" fontWeight="500">
-                    {s.name}
-                  </text>
-                </g>
-              ))}
+                <circle cx="518" cy="95" r="34" fill="rgba(245, 158, 11, 0.14)" stroke="#F59E0B" strokeDasharray="4 4" strokeWidth="1.5" />
+                <text x="556" y="88" fill="#FCD34D" fontSize="9.5" fontWeight="700">Caution Zone B-12</text>
 
-              {/* Moving Driver Beacons */}
-              {drivers.map((d) => {
-                const pos = interpolateRoute(d.route, d.progress);
-                const active = d.id === selectedId;
-                const gpsOff = d.id === 'drv-1' && !driverGpsEnabled;
-                return (
-                  <g
-                    key={d.id}
-                    onClick={() => setSelectedId(d.id)}
-                    style={{ cursor: 'pointer', transition: 'transform 1.5s linear' }}
-                  >
-                    {!gpsOff && (
+                <path
+                  d="M 75 265 L 170 235 L 270 200 L 405 150 L 515 135 L 635 165"
+                  fill="none"
+                  stroke="#3B69B2"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity="0.45"
+                />
+                <path
+                  d="M 75 265 L 170 235 L 270 200 L 405 150 L 515 135 L 635 165"
+                  fill="none"
+                  stroke="#F3D27A"
+                  strokeWidth="2"
+                  strokeDasharray="6 6"
+                  strokeLinecap="round"
+                />
+                <path d="M 515 135 L 525 55" fill="none" stroke="#3B69B2" strokeWidth="5" strokeLinecap="round" opacity="0.45" />
+                <path d="M 515 135 L 525 55" fill="none" stroke="#F3D27A" strokeWidth="1.8" strokeDasharray="5 5" />
+
+                {STATIONS.map((s) => (
+                  <g key={s.code}>
+                    <circle cx={s.x} cy={s.y} r="13" fill="rgba(212, 161, 59, 0.12)" stroke="rgba(243, 210, 122, 0.45)" strokeWidth="1" />
+                    <circle cx={s.x} cy={s.y} r="4.5" fill="#FFFFFF" stroke="#0E2347" strokeWidth="2" />
+                    <text x={s.x} y={s.y + 24} textAnchor="middle" fill="#FFFFFF" fontSize="10.5" fontWeight="800">
+                      {s.code}
+                    </text>
+                    <text x={s.x} y={s.y + 35} textAnchor="middle" fill="#93B4E8" fontSize="8.5" fontWeight="500">
+                      {s.name}
+                    </text>
+                  </g>
+                ))}
+
+                {drivers.map((d) => {
+                  const pos = interpolateRoute(d.route, d.progress);
+                  const active = !selectedLiveCrew && d.id === selectedDemoId;
+                  const gpsOff = d.id === 'drv-1' && !driverGpsEnabled;
+                  return (
+                    <g
+                      key={d.id}
+                      onClick={() => {
+                        setSelectedLiveUid(null);
+                        setSelectedDemoId(d.id);
+                      }}
+                      style={{ cursor: 'pointer', transition: 'transform 1.5s linear' }}
+                    >
+                      {!gpsOff && (
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={active ? 19 : 14}
+                          fill={d.status === 'Caution Zone' ? 'rgba(245,158,11,0.28)' : 'rgba(16,185,129,0.25)'}
+                        />
+                      )}
                       <circle
                         cx={pos.x}
                         cy={pos.y}
-                        r={active ? 19 : 14}
-                        fill={d.status === 'Caution Zone' ? 'rgba(245,158,11,0.28)' : 'rgba(16,185,129,0.25)'}
+                        r={active ? 11 : 8.5}
+                        fill={gpsOff ? '#64748B' : d.status === 'Caution Zone' ? '#F59E0B' : '#10B981'}
+                        stroke={active ? '#F3D27A' : '#FFFFFF'}
+                        strokeWidth={active ? 3 : 2}
+                        filter="url(#glow)"
                       />
-                    )}
-                    <circle
-                      cx={pos.x}
-                      cy={pos.y}
-                      r={active ? 11 : 8.5}
-                      fill={gpsOff ? '#64748B' : d.status === 'Caution Zone' ? '#F59E0B' : '#10B981'}
-                      stroke={active ? '#F3D27A' : '#FFFFFF'}
-                      strokeWidth={active ? 3 : 2}
-                      filter="url(#glow)"
-                    />
-                    <rect
-                      x={pos.x - 52}
-                      y={pos.y - 33}
-                      width="104"
-                      height="20"
-                      rx="6"
-                      fill={active ? '#F3D27A' : 'rgba(14,35,71,0.94)'}
-                      stroke={active ? '#FFFFFF' : 'rgba(243,210,122,0.45)'}
-                      strokeWidth="1"
-                    />
-                    <text
-                      x={pos.x}
-                      y={pos.y - 20}
-                      textAnchor="middle"
-                      fill={active ? '#0E2347' : '#FFFFFF'}
-                      fontSize="8.8"
-                      fontWeight="800"
-                    >
-                      #{d.trainDetails.number} · {d.name.split(' ')[0]} ({gpsOff ? 'OFF' : `${d.speed}km/h`})
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-
-            {/* Map Legend */}
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-blue-200/80 px-1">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> On-Duty Live GPS
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Caution Order Zone
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full border border-[#F3D27A] bg-[#F3D27A]/20" /> Station Geofence
-                </span>
-              </div>
-              <span className="text-[10.5px] text-[#F3D27A] font-semibold">
-                Click any driver marker for live telemetry
-              </span>
+                      <rect
+                        x={pos.x - 52}
+                        y={pos.y - 33}
+                        width="104"
+                        height="20"
+                        rx="6"
+                        fill={active ? '#F3D27A' : 'rgba(14,35,71,0.94)'}
+                        stroke={active ? '#FFFFFF' : 'rgba(243,210,122,0.45)'}
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={pos.x}
+                        y={pos.y - 20}
+                        textAnchor="middle"
+                        fill={active ? '#0E2347' : '#FFFFFF'}
+                        fontSize="8.8"
+                        fontWeight="800"
+                      >
+                        #{d.trainDetails.number} · {d.name.split(' ')[0]} ({gpsOff ? 'OFF' : `${d.speed}km/h`})
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
             </div>
-          </div>
+          )}
         </section>
 
-        {/* Right Column: Selected Driver Live Telemetry + Roster */}
+        {/* Right Column: Live Connected Crew Roster + Telemetry */}
         <section className="lg:col-span-4 space-y-4">
-          {/* Selected Telemetry Card */}
+          {/* REAL LIVE PHONE GPS CREW LIST (Firestore live_locations) */}
+          <div className="bg-white rounded-2xl shadow-card border-2 border-emerald-500/40 p-4 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
+                <Smartphone className="w-3.5 h-3.5" /> Live Connected Crew ({liveCrewLocations.length})
+              </h3>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> Real-Time
+              </span>
+            </div>
+
+            {liveCrewLocations.length === 0 ? (
+              <p className="text-[11px] text-slate-500 bg-slate-50 rounded-xl p-3 leading-relaxed">
+                जैसे ही कोई भी लॉग-इन क्रू (जैसे आदित्य कुमार गौतम) अपने फोन पर **Live GPS ON** रखेगा या **Sync My Device GPS** दबाएगा, उनकी असली लोकेशन यहाँ तुरंत दिखने लगेगी।
+              </p>
+            ) : (
+              <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                {liveCrewLocations.map((crew) => {
+                  const active = selectedLiveUid === crew.id;
+                  return (
+                    <button
+                      key={crew.id}
+                      onClick={() => {
+                        setSelectedLiveUid(crew.id);
+                        setMapMode('google');
+                      }}
+                      className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between gap-2 transition ${
+                        active
+                          ? 'bg-emerald-50 border-emerald-500 shadow-sm'
+                          : 'bg-[#FAFBFD] border-slate-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <OfficerAvatar photo={getDriverPhoto(crew.name)} name={crew.name} size={36} ring={crew.gpsEnabled} />
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold text-[#0E2347] truncate">{crew.name}</p>
+                          <p className="text-[10px] text-slate-500 truncate">
+                            {crew.employeeId} · {crew.lobby || crew.station} · {formatAgo(crew.updatedAtMs)}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
+                          crew.gpsEnabled ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {crew.gpsEnabled ? 'LIVE' : 'OFF'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Selected Crew Telemetry Card */}
           <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-4 space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#C8922A]">
-                Selected Driver Telemetry
+                {selectedLiveCrew ? 'Real Phone GPS Telemetry' : 'Corridor Demo Telemetry'}
               </span>
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                  isSelfDriver && !driverGpsEnabled
-                    ? 'bg-slate-100 text-slate-500'
-                    : selectedDriver.status === 'Caution Zone'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-emerald-50 text-emerald-700'
+                  selectedLiveCrew
+                    ? selectedLiveCrew.gpsEnabled
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-slate-100 text-slate-500'
+                    : 'bg-blue-50 text-blue-700'
                 }`}
               >
-                {isSelfDriver && !driverGpsEnabled ? 'GPS Off (Off-Duty)' : selectedDriver.status}
+                {selectedLiveCrew
+                  ? selectedLiveCrew.gpsEnabled
+                    ? `Live · ${formatAgo(selectedLiveCrew.updatedAtMs)}`
+                    : 'GPS Paused'
+                  : selectedDemoDriver.status}
               </span>
             </div>
 
             <div className="flex items-center gap-3">
               <OfficerAvatar
-                photo={getDriverPhoto(selectedDriver.name)}
-                name={selectedDriver.name}
-                variant={selectedDriver.avatarVariant}
-                size={52}
+                photo={getDriverPhoto(selectedLiveCrew ? selectedLiveCrew.name : selectedDemoDriver.name)}
+                name={selectedLiveCrew ? selectedLiveCrew.name : selectedDemoDriver.name}
+                variant={selectedLiveCrew ? 'officer-male-1' : selectedDemoDriver.avatarVariant}
+                size={50}
                 ring
               />
               <div className="min-w-0">
-                <h3 className="font-extrabold text-base text-[#0E2347] truncate">{selectedDriver.name}</h3>
-                <p className="text-xs text-slate-500">
-                  {selectedDriver.role} · <span className="font-mono font-semibold">{selectedDriver.employeeId}</span>
+                <h3 className="font-extrabold text-base text-[#0E2347] truncate">
+                  {selectedLiveCrew ? selectedLiveCrew.name : selectedDemoDriver.name}
+                </h3>
+                <p className="text-xs text-slate-500 truncate">
+                  {selectedLiveCrew
+                    ? `${selectedLiveCrew.role} · ${selectedLiveCrew.employeeId}`
+                    : `${selectedDemoDriver.role} · ${selectedDemoDriver.employeeId}`}
                 </p>
-                <p className="text-xs font-bold text-[#1B3C73] mt-0.5">{selectedDriver.train}</p>
+                <p className="text-xs font-bold text-[#1B3C73] mt-0.5 truncate">
+                  {selectedLiveCrew
+                    ? `${selectedLiveCrew.division} · ${selectedLiveCrew.lobby}`
+                    : selectedDemoDriver.train}
+                </p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="p-2.5 rounded-xl bg-[#F5F8FC] border border-slate-100">
                 <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                  <Compass className="w-3 h-3 text-[#C8922A]" /> GPS Coordinates
+                  <Compass className="w-3 h-3 text-[#C8922A]" /> Exact GPS
                 </div>
-                <div className="font-mono font-bold text-[#0E2347] mt-0.5">
-                  {displayLat}°N, {displayLng}°E
+                <div className="font-mono font-bold text-[#0E2347] mt-0.5 text-[11px]">
+                  {activeLat}, {activeLng}
                 </div>
               </div>
               <div className="p-2.5 rounded-xl bg-[#F5F8FC] border border-slate-100">
                 <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                  <Gauge className="w-3 h-3 text-[#C8922A]" /> Current Speed
+                  <Gauge className="w-3 h-3 text-[#C8922A]" /> Speed / Accuracy
                 </div>
                 <div className="font-extrabold text-[#0E2347] mt-0.5">
-                  {isSelfDriver && !driverGpsEnabled ? '0 km/h' : `${selectedDriver.speed} km/h`}
-                </div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[#F5F8FC] border border-slate-100">
-                <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-[#C8922A]" /> Next Station
-                </div>
-                <div className="font-bold text-[#0E2347] mt-0.5 truncate">{selectedPos.nextStation}</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[#F5F8FC] border border-slate-100">
-                <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                  <BatteryCharging className="w-3 h-3 text-emerald-600" /> Device / Signal
-                </div>
-                <div className="font-bold text-[#0E2347] mt-0.5 flex items-center gap-1.5">
-                  <span>{selectedDriver.battery}%</span>
-                  <Signal className="w-3 h-3 text-emerald-600" />
+                  {selectedLiveCrew
+                    ? `${selectedLiveCrew.speedKmh || 0} km/h${selectedLiveCrew.accuracy ? ` · ±${selectedLiveCrew.accuracy}m` : ''}`
+                    : `${selectedDemoDriver.speed} km/h`}
                 </div>
               </div>
             </div>
 
-            {/* Assigned Train & Locomotive Details Box */}
-            <div className="rounded-xl bg-gradient-to-br from-[#0E2347] to-[#17366B] text-white p-3.5 space-y-2 border border-[#D4A13B]/35">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <TrainFront className="w-4 h-4 text-[#F3D27A] shrink-0" />
-                  <span className="text-xs font-extrabold truncate">
-                    {selectedDriver.trainDetails.number} · {selectedDriver.trainDetails.name}
+            {!selectedLiveCrew && (
+              <div className="rounded-xl bg-gradient-to-br from-[#0E2347] to-[#17366B] text-white p-3 space-y-1.5 border border-[#D4A13B]/35 text-[10.5px]">
+                <div className="flex items-center gap-2 font-extrabold text-xs">
+                  <TrainFront className="w-4 h-4 text-[#F3D27A]" />
+                  <span>
+                    {selectedDemoDriver.trainDetails.number} · {selectedDemoDriver.trainDetails.name}
                   </span>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[9.5px] font-extrabold shrink-0 ${
-                    selectedDriver.trainDetails.runningStatus.includes('Delayed')
-                      ? 'bg-amber-400/20 text-amber-200 border border-amber-300/30'
-                      : 'bg-emerald-400/20 text-emerald-200 border border-emerald-300/30'
-                  }`}
-                >
-                  {selectedDriver.trainDetails.runningStatus}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10.5px] text-blue-100/90">
-                <div>
-                  <span className="text-blue-300/80">Loco: </span>
-                  <span className="font-bold text-[#F3D27A]">{selectedDriver.trainDetails.locoNo}</span>
-                </div>
-                <div>
-                  <span className="text-blue-300/80">Rake: </span>
-                  <span className="font-semibold text-white">{selectedDriver.trainDetails.coaches}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-blue-300/80">Route: </span>
-                  <span className="font-semibold text-white">{selectedDriver.trainDetails.originDest}</span>
-                </div>
-                <div className="col-span-2 flex items-center gap-1 text-[#F3D27A] font-semibold">
-                  <Clock className="w-3 h-3 shrink-0" />
-                  <span>{selectedDriver.trainDetails.nextEta} · {selectedDriver.trainDetails.signOn}</span>
-                </div>
-                <div className="col-span-2 text-[10px] text-blue-200/80 border-t border-white/10 pt-1 mt-0.5">
-                  {selectedDriver.trainDetails.coCrew}
+                <div className="text-blue-200">{selectedDemoDriver.trainDetails.locoNo} · {selectedDemoDriver.trainDetails.originDest}</div>
+                <div className="flex items-center gap-1 text-[#F3D27A] font-semibold">
+                  <Clock className="w-3 h-3" /> {selectedDemoDriver.trainDetails.nextEta}
                 </div>
               </div>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-[#FDF6E4] border border-[#D4A13B]/30 text-[11.5px] font-semibold text-[#0E2347]">
-              Geofence: <span className="font-bold text-[#9A6D1B]">{selectedDriver.geofence}</span>
-            </div>
+            )}
 
             <div className="grid grid-cols-3 gap-2">
               <a
-                href={`tel:${selectedDriver.phone}`}
+                href={`tel:${selectedLiveCrew?.phone || selectedDemoDriver.phone}`}
                 className="py-2 rounded-xl bg-[#0E2347] text-white text-xs font-bold flex items-center justify-center gap-1 hover:bg-[#17366B]"
               >
                 <Phone className="w-3.5 h-3.5" /> Call
               </a>
               <a
-                href={`https://wa.me/91${selectedDriver.phone}`}
+                href={`https://wa.me/91${(selectedLiveCrew?.phone || selectedDemoDriver.phone || '').replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noreferrer"
                 className="py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1 hover:bg-emerald-700"
               >
                 <MessageCircle className="w-3.5 h-3.5" /> Chat
               </a>
-              <button
-                onClick={() => notify(`Caution Alert pinged to ${selectedDriver.name} (${selectedDriver.train})`)}
-                className="py-2 rounded-xl bg-gradient-to-r from-[#D4A13B] to-[#E5B84B] text-[#0E2347] text-xs font-extrabold hover:brightness-95"
+              <a
+                href={`https://www.google.com/maps?q=${activeLat},${activeLng}`}
+                target="_blank"
+                rel="noreferrer"
+                className="py-2 rounded-xl bg-gradient-to-r from-[#D4A13B] to-[#E5B84B] text-[#0E2347] text-xs font-extrabold flex items-center justify-center gap-1 hover:brightness-95"
               >
-                Ping Alert
-              </button>
+                <MapPin className="w-3.5 h-3.5" /> Map
+              </a>
             </div>
           </div>
 
-          {/* Driver Switcher List */}
+          {/* Corridor Demo Trains Switcher */}
           <div className="bg-white rounded-2xl shadow-card border border-slate-200/70 p-4 space-y-2">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Tracked Crew Roster</h3>
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">SECR Corridor Reference Trains</h3>
             <div className="space-y-1.5">
               {drivers.map((d) => {
-                const active = d.id === selectedId;
-                const gpsOff = d.id === 'drv-1' && !driverGpsEnabled;
+                const active = !selectedLiveCrew && d.id === selectedDemoId;
                 return (
                   <button
                     key={d.id}
-                    onClick={() => setSelectedId(d.id)}
-                    className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between gap-2 transition ${
-                      active
-                        ? 'bg-[#FDF6E4] border-[#D4A13B]'
-                        : 'bg-[#FAFBFD] border-slate-100 hover:border-slate-200'
+                    onClick={() => {
+                      setSelectedLiveUid(null);
+                      setSelectedDemoId(d.id);
+                      setMapMode('corridor');
+                    }}
+                    className={`w-full p-2 rounded-xl border text-left flex items-center justify-between gap-2 transition ${
+                      active ? 'bg-[#FDF6E4] border-[#D4A13B]' : 'bg-[#FAFBFD] border-slate-100 hover:border-slate-200'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <OfficerAvatar photo={getDriverPhoto(d.name)} name={d.name} variant={d.avatarVariant} size={34} />
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold text-[#0E2347] truncate">{d.name}</p>
-                        <p className="text-[10.5px] text-slate-500 truncate">{d.train}</p>
-                      </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-[#0E2347] truncate">{d.name}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{d.train}</p>
                     </div>
-                    <span className={`text-[11px] font-extrabold shrink-0 ${gpsOff ? 'text-slate-400' : 'text-emerald-700'}`}>
-                      {gpsOff ? 'GPS OFF' : `${d.speed} km/h`}
-                    </span>
+                    <span className="text-[10.5px] font-extrabold text-emerald-700 shrink-0">{d.speed} km/h</span>
                   </button>
                 );
               })}

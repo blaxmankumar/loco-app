@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -88,6 +88,27 @@ function friendlyAuthError(err) {
   return err?.message || 'Authentication error occurred.';
 }
 
+function playNotificationBeep() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {
+    // ignore audio autoplay restrictions
+  }
+}
+
 export function AppStateProvider({ children }) {
   const [state, setState] = useState(() => {
     try {
@@ -105,6 +126,11 @@ export function AppStateProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
   const [authError, setAuthError] = useState('');
+  const [liveCrewLocations, setLiveCrewLocations] = useState([]);
+  const [gpsLastSyncAt, setGpsLastSyncAt] = useState(null);
+
+  const seenPendingIdsRef = useRef(null);
+  const lastGpsPushRef = useRef(0);
 
   // Auto-upgrade local demo data if outdated
   useEffect(() => {
@@ -129,6 +155,14 @@ export function AppStateProvider({ children }) {
       // ignore quota errors
     }
   }, [state]);
+
+  const notify = (message, tone = 'success') => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [...prev, { id, message, tone }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
 
   // ================= LIVE FIREBASE AUTH + USER PROFILE LISTENER =================
   useEffect(() => {
@@ -166,7 +200,6 @@ export function AppStateProvider({ children }) {
               approved: Boolean(data.approved || data.isAdmin || adminFlag),
             });
           } else {
-            // Fallback profile if user doc wasn't created yet
             const fallback = {
               uid: fbUser.uid,
               email,
@@ -205,6 +238,83 @@ export function AppStateProvider({ children }) {
     };
   }, []);
 
+  // ================= REAL-TIME LIVE GPS BROADCASTER (FIRESTORE live_locations/{uid}) =================
+  const pushGpsToCloud = async (coords, enabled = true) => {
+    if (!isFirebaseConfigured || !db || !currentUser?.uid) return;
+    try {
+      const payload = {
+        uid: currentUser.uid,
+        name: currentUser.name || 'LOCO Crew',
+        employeeId: currentUser.employeeId || 'CRW',
+        phone: currentUser.phone || '',
+        role: currentUser.role || 'Loco Pilot',
+        division: currentUser.division || 'Bilaspur',
+        lobby: currentUser.lobby || 'Bilaspur (BSP)',
+        station: currentUser.station || 'BSP',
+        isAdmin: Boolean(currentUser.isAdmin),
+        gpsEnabled: Boolean(enabled),
+        updatedAtMs: Date.now(),
+        updatedAt: serverTimestamp(),
+      };
+      if (coords) {
+        payload.lat = Number(coords.latitude ?? coords.lat);
+        payload.lng = Number(coords.longitude ?? coords.lng);
+        payload.accuracy = coords.accuracy ? Math.round(coords.accuracy) : null;
+        payload.speedKmh =
+          typeof coords.speed === 'number' && coords.speed >= 0
+            ? Math.round(coords.speed * 3.6)
+            : 0;
+        payload.heading = typeof coords.heading === 'number' ? Math.round(coords.heading) : null;
+      }
+      await setDoc(doc(db, 'live_locations', currentUser.uid), payload, { merge: true });
+      setGpsLastSyncAt(Date.now());
+    } catch {
+      // ignore if rules not published yet
+    }
+  };
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !db || !currentUser?.uid) return;
+    if (!currentUser.approved && !currentUser.isAdmin) return;
+
+    if (!state.driverGpsEnabled) {
+      pushGpsToCloud(null, false);
+      return;
+    }
+
+    if (!navigator.geolocation) return;
+
+    const handlePosition = (pos) => {
+      const { latitude, longitude, accuracy, speed, heading } = pos.coords;
+      setState((prev) => ({
+        ...prev,
+        realCoords: { lat: latitude, lng: longitude, accuracy: Math.round(accuracy || 0) },
+      }));
+      const now = Date.now();
+      if (now - lastGpsPushRef.current >= 8000) {
+        lastGpsPushRef.current = now;
+        pushGpsToCloud({ latitude, longitude, accuracy, speed, heading }, true);
+      }
+    };
+
+    // Immediate first fix + continuous watchPosition stream
+    navigator.geolocation.getCurrentPosition(handlePosition, () => {}, {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 10000,
+    });
+
+    const watchId = navigator.geolocation.watchPosition(handlePosition, () => {}, {
+      enableHighAccuracy: true,
+      timeout: 20000,
+      maximumAge: 8000,
+    });
+
+    return () => {
+      if (watchId != null) navigator.geolocation.clearWatch(watchId);
+    };
+  }, [currentUser?.uid, currentUser?.approved, currentUser?.isAdmin, state.driverGpsEnabled]);
+
   // ================= LIVE FIRESTORE DATA LISTENERS (WHEN APPROVED/ADMIN) =================
   useEffect(() => {
     if (!isFirebaseConfigured || !db || !currentUser) return;
@@ -226,7 +336,7 @@ export function AppStateProvider({ children }) {
         })
       );
     } catch {
-      // ignore listener errors
+      // ignore
     }
 
     // 2. Live Documents
@@ -263,7 +373,7 @@ export function AppStateProvider({ children }) {
       // ignore
     }
 
-    // 4. Live Incidents & Alerts
+    // 4. Live Incidents
     try {
       const qInc = query(collection(db, 'incidents'), orderBy('createdAtMs', 'desc'));
       unsubs.push(
@@ -276,20 +386,66 @@ export function AppStateProvider({ children }) {
       // ignore
     }
 
-    // 5. Admin-only: Real-time Pending Staff Approvals from users collection
+    // 5. Real-Time Live Crew GPS Locations (from all signed-in crew phones!)
+    try {
+      unsubs.push(
+        onSnapshot(collection(db, 'live_locations'), (snap) => {
+          const list = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .filter((loc) => typeof loc.lat === 'number' && typeof loc.lng === 'number')
+            .sort((a, b) => {
+              if (Boolean(b.gpsEnabled) !== Boolean(a.gpsEnabled)) return b.gpsEnabled ? 1 : -1;
+              return (b.updatedAtMs || 0) - (a.updatedAtMs || 0);
+            });
+          setLiveCrewLocations(list);
+        })
+      );
+    } catch {
+      // ignore
+    }
+
+    // 6. Admin-only: Real-time Pending Staff Approvals + Instant Notification Alerts!
     if (currentUser.isAdmin) {
       try {
-        const qUsers = collection(db, 'users');
         unsubs.push(
-          onSnapshot(qUsers, (snap) => {
-            const pending = snap.docs
-              .map((d) => ({ id: d.id, ...d.data() }))
+          onSnapshot(collection(db, 'users'), (snap) => {
+            const allUsers = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+            const pending = allUsers
               .filter((u) => !u.isAdmin && !u.approved && !u.rejected)
               .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+
+            // Fire live notification + chime when a NEW registration arrives!
+            const currentIds = new Set(pending.map((u) => u.id));
+            if (seenPendingIdsRef.current !== null) {
+              const newlyArrived = pending.filter((u) => !seenPendingIdsRef.current.has(u.id));
+              if (newlyArrived.length > 0) {
+                playNotificationBeep();
+                newlyArrived.forEach((u) => {
+                  notify(
+                    `🔔 New Staff Approval Request: ${u.name} (${u.employeeId || u.phone}) — Tap Approvals!`,
+                    'warning'
+                  );
+                });
+              }
+            }
+            seenPendingIdsRef.current = currentIds;
+
+            // Surface every pending approval right at the top of Alerts / Notification Bell!
+            const approvalAlerts = pending.map((u) => ({
+              id: `apr-alert-${u.id}`,
+              userId: u.id,
+              isApprovalRequest: true,
+              title: `Approval Request: ${u.name}`,
+              message: `${u.role || 'Crew'} · ${u.employeeId || u.phone} · ${u.lobby || u.division} waiting for Admin approval.`,
+              severity: 'critical',
+              time: u.requestedAt || 'Just now',
+            }));
+
             setState((prev) => ({
               ...prev,
               pendingApprovals: pending,
               pendingApprovalsCountBase: 0,
+              alerts: [...approvalAlerts, ...INITIAL_ALERTS],
             }));
           })
         );
@@ -300,14 +456,6 @@ export function AppStateProvider({ children }) {
 
     return () => unsubs.forEach((fn) => fn && fn());
   }, [currentUser?.uid, currentUser?.approved, currentUser?.isAdmin]);
-
-  const notify = (message, tone = 'success') => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-    setToasts((prev) => [...prev, { id, message, tone }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3400);
-  };
 
   // ================= FIREBASE AUTH ACTIONS =================
   const firebaseLogin = async (identifier, password) => {
@@ -389,7 +537,7 @@ export function AppStateProvider({ children }) {
     notify('Signed out safely', 'info');
   };
 
-  // ================= ADMIN & CREW ACTIONS (SYNCED TO FIRESTORE WHEN LIVE) =================
+  // ================= ADMIN & CREW ACTIONS =================
   const approveUser = async (id) => {
     if (isFirebaseConfigured && db && currentUser?.isAdmin) {
       try {
@@ -561,7 +709,7 @@ export function AppStateProvider({ children }) {
         notify('Contact synced live to all devices');
         return;
       } catch {
-        // fall through to local update
+        // fall through
       }
     }
     setState((prev) => ({
@@ -576,7 +724,7 @@ export function AppStateProvider({ children }) {
       try {
         await deleteDoc(doc(db, 'contacts', id));
       } catch {
-        // ignore if built-in static record
+        // ignore
       }
     }
     setState((prev) => ({
@@ -652,7 +800,6 @@ export function AppStateProvider({ children }) {
 
     let finalExternalUrl = docInput.externalUrl?.trim() || null;
 
-    // Upload real file to Firebase Storage when Firebase is active
     if (isFirebaseConfigured && storage && docInput.rawFile && currentUser?.isAdmin) {
       try {
         const safeName = `${Date.now()}_${docInput.rawFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
@@ -660,7 +807,7 @@ export function AppStateProvider({ children }) {
         await uploadBytes(storageRef, docInput.rawFile);
         finalExternalUrl = await getDownloadURL(storageRef);
       } catch {
-        // If Storage isn't enabled on Spark plan, still save metadata/link cleanly
+        // fallback if storage bucket not enabled
       }
     }
 
@@ -744,7 +891,7 @@ export function AppStateProvider({ children }) {
         notify('Incident logged LIVE to Admin Control Center!', 'warning');
         return;
       } catch {
-        // fall through to local
+        // fall through
       }
     }
 
@@ -812,32 +959,38 @@ export function AppStateProvider({ children }) {
       const next = !prev.driverGpsEnabled;
       notify(
         next
-          ? 'Live Driver GPS enabled — broadcasting to Admin Control Center'
+          ? 'Live Driver GPS ON — broadcasting your real location to Admin!'
           : 'Driver GPS paused (Off-Duty privacy mode)',
         'info'
       );
+      if (!next) {
+        pushGpsToCloud(null, false);
+      }
       return { ...prev, driverGpsEnabled: next };
     });
   };
 
   const captureRealGps = () => {
     if (!navigator.geolocation) {
-      notify('Browser geolocation unavailable — using corridor GPS simulation', 'info');
+      notify('Device GPS unavailable — please enable Location on your phone', 'warning');
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
+        const { latitude, longitude, accuracy, speed, heading } = pos.coords;
         setState((prev) => ({
           ...prev,
           driverGpsEnabled: true,
-          realCoords: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          realCoords: { lat: latitude, lng: longitude, accuracy: Math.round(accuracy || 0) },
         }));
-        notify(`Live device GPS synced (${pos.coords.latitude.toFixed(4)}°N, ${pos.coords.longitude.toFixed(4)}°E)`);
+        lastGpsPushRef.current = Date.now();
+        await pushGpsToCloud({ latitude, longitude, accuracy, speed, heading }, true);
+        notify(`Live GPS synced to Admin (${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E)`);
       },
       () => {
-        notify('Location permission denied — continuing with SECR corridor GPS feed', 'info');
+        notify('Location permission denied — please allow Location access in phone settings', 'warning');
       },
-      { timeout: 6000 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
@@ -860,6 +1013,8 @@ export function AppStateProvider({ children }) {
         currentUser,
         authLoading,
         authError,
+        liveCrewLocations,
+        gpsLastSyncAt,
         firebaseLogin,
         firebaseRegister,
         firebaseLogout,

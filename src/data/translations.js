@@ -57,6 +57,9 @@ export const TRANSLATIONS = {
 
     // Mobile App
     goodMorning: 'Good Morning, Crew',
+    goodAfternoon: 'Good Afternoon, Crew',
+    goodEvening: 'Good Evening, Crew',
+    goodNight: 'Good Night, Crew',
     keepSmooth: 'Keep operations smooth and safe',
     approvedUser: 'Approved User',
     protectedAccess: 'Protected Access',
@@ -152,6 +155,9 @@ export const TRANSLATIONS = {
 
     // Mobile App
     goodMorning: 'शुभ प्रभात, क्रू',
+    goodAfternoon: 'शुभ दोपहर, क्रू',
+    goodEvening: 'शुभ संध्या, क्रू',
+    goodNight: 'शुभ रात्रि, क्रू',
     keepSmooth: 'सुरक्षित और सुचारू संचालन बनाए रखें',
     approvedUser: 'अप्रूव्ड यूज़र',
     protectedAccess: 'सुरक्षित एक्सेस',

@@ -73,5 +73,11 @@ service cloud.firestore {
       allow create: if isApproved();
       allow update, delete: if isAdmin();
     }
+
+    // Real-time Crew Live GPS Tracking — Crew writes own coordinates, Admin/Approved reads live
+    match /live_locations/{uid} {
+      allow read: if isApproved();
+      allow write: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+    }
   }
 }

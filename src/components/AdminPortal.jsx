@@ -216,26 +216,59 @@ export default function AdminPortal({
               />
             </div>
 
-            {/* Notification Bell */}
+            {/* Notification Bell with Live Pending Approval Count & Quick Approve */}
             <div className="relative">
               <button
                 onClick={() => setNotifOpen((v) => !v)}
                 className="relative w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition"
-                title="Notifications"
+                title="Notifications & Approval Requests"
               >
                 <Bell className="w-4 h-4" />
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F3D27A] border-2 border-[#11274D] absolute top-1.5 right-1.5" />
+                {pendingApprovals.length > 0 ? (
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-extrabold flex items-center justify-center absolute -top-1 -right-1 border border-white">
+                    {pendingApprovals.length}
+                  </span>
+                ) : (
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#F3D27A] border-2 border-[#11274D] absolute top-1.5 right-1.5" />
+                )}
               </button>
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 p-3 z-40">
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-3 z-40 space-y-2.5">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="text-xs font-extrabold text-[#0E2347]">Live Operational Alerts</span>
+                    <span className="text-xs font-extrabold text-[#0E2347]">
+                      🔔 Alerts &amp; Approvals ({pendingApprovals.length} Pending)
+                    </span>
                     <button onClick={() => setNotifOpen(false)} className="text-xs text-slate-400 hover:text-slate-600">
                       Close
                     </button>
                   </div>
-                  <div className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                    {alerts.map((a) => (
+                  <div className="space-y-2 max-h-72 overflow-y-auto">
+                    {pendingApprovals.map((u) => (
+                      <div key={u.id} className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 space-y-1.5">
+                        <div className="flex justify-between text-xs font-extrabold text-[#0E2347]">
+                          <span>New Staff: {u.name}</span>
+                          <span className="text-[10px] text-amber-700">{u.requestedAt}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600">
+                          {u.role} · {u.employeeId || u.phone} · {u.lobby || u.division}
+                        </p>
+                        <div className="flex gap-1.5 pt-0.5">
+                          <button
+                            onClick={() => approveUser(u.id)}
+                            className="flex-1 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700"
+                          >
+                            ✓ Approve
+                          </button>
+                          <button
+                            onClick={() => rejectUser(u.id)}
+                            className="px-2.5 py-1 rounded-lg bg-red-50 text-red-600 border border-red-200 text-[11px] font-bold hover:bg-red-600 hover:text-white"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {alerts.filter((a) => !a.isApprovalRequest).map((a) => (
                       <div key={a.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                         <div className="flex justify-between text-xs font-bold text-[#0E2347]">
                           <span>{a.title}</span>
@@ -249,10 +282,17 @@ export default function AdminPortal({
               )}
             </div>
 
-            {/* Date Pill */}
+            {/* Date Pill (Live Current Date) */}
             <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold">
               <Calendar className="w-3.5 h-3.5 text-[#F3D27A]" />
-              <span>Tue, 04 Feb 2025</span>
+              <span>
+                {new Date().toLocaleDateString('en-IN', {
+                  weekday: 'short',
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </span>
             </div>
 
             {/* Admin Avatar */}
