@@ -1,5 +1,5 @@
-const CACHE_NAME = 'loco-rail-v1';
-const PRECACHE = ['/', '/index.html', '/manifest.json', '/rail-icon.svg', '/icon-192.png', '/icon-512.png'];
+const CACHE_NAME = 'loco-rail-v3';
+const PRECACHE = ['./', './index.html', './manifest.json', './rail-icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -26,6 +26,6 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone)).catch(() => {});
         return resp;
       })
-      .catch(() => caches.match(event.request).then((r) => r || caches.match('/index.html')))
+      .catch(() => caches.match(event.request).then((r) => r || caches.match('./index.html')))
   );
 });

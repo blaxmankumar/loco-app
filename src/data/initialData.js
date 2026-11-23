@@ -391,7 +391,7 @@ export const INITIAL_DOCUMENTS = [
     status: 'Verified',
     date: 'Updated Today',
     previewType: 'pdf',
-    externalUrl: '/BSP_LP_Phone_List.pdf',
+    externalUrl: './BSP_LP_Phone_List.pdf',
     summary:
       'Official 31-page BSP LP Phone List covering all 993 Bilaspur (BSP) Lobby Loco Pilots, Asst. / Sr. Asst. Loco Pilots, and Shunters with Crew IDs and direct Call / WhatsApp numbers (all 993 contacts are also live inside Crew Directory).',
   },
