@@ -1,5 +1,32 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import {
+  auth,
+  db,
+  isAdminEmail,
+  isFirebaseConfigured,
+  normalizeIdentifierToEmail,
+  storage,
+} from '../firebase';
+import {
   INITIAL_ALERTS,
   INITIAL_CONTACTS,
   INITIAL_DOCUMENTS,
@@ -17,7 +44,7 @@ const defaultState = {
   driverGpsEnabled: true,
   realCoords: null,
   totalUsers: 5842,
-  pendingApprovalsCountBase: 17, // + 7 visible = 24 matching dashboard KPI
+  pendingApprovalsCountBase: 17,
   pendingApprovals: INITIAL_PENDING_APPROVALS,
   contacts: INITIAL_CONTACTS,
   notices: INITIAL_NOTICES,
@@ -44,6 +71,23 @@ const defaultState = {
 
 const AppStateContext = createContext(null);
 
+function friendlyAuthError(err) {
+  const code = err?.code || '';
+  if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
+    return 'मोबाइल नंबर / ईमेल या पासवर्ड गलत है। नए यूज़र पहले Register करें।';
+  }
+  if (code.includes('email-already-in-use')) {
+    return 'यह मोबाइल नंबर पहले से रजिस्टर्ड है — कृपया Sign In टैब से लॉगिन करें।';
+  }
+  if (code.includes('weak-password')) {
+    return 'पासवर्ड कम से कम 6 अक्षरों का रखें।';
+  }
+  if (code.includes('network-request-failed')) {
+    return 'इंटरनेट कनेक्शन चेक करें और दोबारा प्रयास करें।';
+  }
+  return err?.message || 'Authentication error occurred.';
+}
+
 export function AppStateProvider({ children }) {
   const [state, setState] = useState(() => {
     try {
@@ -58,7 +102,11 @@ export function AppStateProvider({ children }) {
   });
 
   const [toasts, setToasts] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
+  const [authError, setAuthError] = useState('');
 
+  // Auto-upgrade local demo data if outdated
   useEffect(() => {
     setState((prev) => {
       let next = prev;
@@ -78,9 +126,180 @@ export function AppStateProvider({ children }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
-      // ignore quota errors if very large photo uploaded
+      // ignore quota errors
     }
   }, [state]);
+
+  // ================= LIVE FIREBASE AUTH + USER PROFILE LISTENER =================
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth || !db) {
+      setAuthLoading(false);
+      return;
+    }
+
+    let unsubProfile = null;
+    const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
+      if (!fbUser) {
+        setCurrentUser(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      const email = fbUser.email || '';
+      const adminFlag = isAdminEmail(email);
+      const userRef = doc(db, 'users', fbUser.uid);
+
+      unsubProfile = onSnapshot(
+        userRef,
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setCurrentUser({
+              uid: fbUser.uid,
+              email,
+              ...data,
+              isAdmin: Boolean(data.isAdmin || adminFlag),
+              approved: Boolean(data.approved || data.isAdmin || adminFlag),
+            });
+          } else {
+            // Fallback profile if user doc wasn't created yet
+            const fallback = {
+              uid: fbUser.uid,
+              email,
+              name: adminFlag ? 'LOCO Admin' : email.split('@')[0],
+              phone: email.endsWith('@loco.secr.in') ? email.split('@')[0] : '',
+              employeeId: adminFlag ? 'ADMIN-HQ' : 'CRW-PENDING',
+              role: adminFlag ? 'Admin' : 'Loco Pilot',
+              division: 'Bilaspur',
+              lobby: 'Bilaspur (BSP)',
+              station: 'BSP',
+              isAdmin: adminFlag,
+              approved: adminFlag,
+              canDownload: adminFlag,
+            };
+            setCurrentUser(fallback);
+          }
+          setAuthLoading(false);
+        },
+        () => {
+          setCurrentUser({
+            uid: fbUser.uid,
+            email,
+            name: adminFlag ? 'LOCO Admin' : email.split('@')[0],
+            isAdmin: adminFlag,
+            approved: adminFlag,
+            canDownload: adminFlag,
+          });
+          setAuthLoading(false);
+        }
+      );
+    });
+
+    return () => {
+      if (unsubProfile) unsubProfile();
+      unsubAuth();
+    };
+  }, []);
+
+  // ================= LIVE FIRESTORE DATA LISTENERS (WHEN APPROVED/ADMIN) =================
+  useEffect(() => {
+    if (!isFirebaseConfigured || !db || !currentUser) return;
+    if (!currentUser.approved && !currentUser.isAdmin) return;
+
+    const unsubs = [];
+
+    // 1. Live Notices
+    try {
+      const qNotices = query(collection(db, 'notices'), orderBy('createdAtMs', 'desc'));
+      unsubs.push(
+        onSnapshot(qNotices, (snap) => {
+          const remote = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const remoteIds = new Set(remote.map((r) => r.id));
+          setState((prev) => ({
+            ...prev,
+            notices: [...remote, ...INITIAL_NOTICES.filter((n) => !remoteIds.has(n.id))],
+          }));
+        })
+      );
+    } catch {
+      // ignore listener errors
+    }
+
+    // 2. Live Documents
+    try {
+      const qDocs = query(collection(db, 'documents'), orderBy('createdAtMs', 'desc'));
+      unsubs.push(
+        onSnapshot(qDocs, (snap) => {
+          const remote = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const remoteIds = new Set(remote.map((r) => r.id));
+          setState((prev) => ({
+            ...prev,
+            documents: [...remote, ...INITIAL_DOCUMENTS.filter((d) => !remoteIds.has(d.id))],
+          }));
+        })
+      );
+    } catch {
+      // ignore
+    }
+
+    // 3. Live Custom Crew Contacts / Photo Overrides
+    try {
+      const qContacts = query(collection(db, 'contacts'), orderBy('createdAtMs', 'desc'));
+      unsubs.push(
+        onSnapshot(qContacts, (snap) => {
+          const remote = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const byId = new Map(remote.map((r) => [r.id, r]));
+          const mergedBase = INITIAL_CONTACTS.map((c) => (byId.has(c.id) ? { ...c, ...byId.get(c.id) } : c));
+          const baseIds = new Set(INITIAL_CONTACTS.map((c) => c.id));
+          const extras = remote.filter((r) => !baseIds.has(r.id));
+          setState((prev) => ({ ...prev, contacts: [...extras, ...mergedBase] }));
+        })
+      );
+    } catch {
+      // ignore
+    }
+
+    // 4. Live Incidents & Alerts
+    try {
+      const qInc = query(collection(db, 'incidents'), orderBy('createdAtMs', 'desc'));
+      unsubs.push(
+        onSnapshot(qInc, (snap) => {
+          const remote = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setState((prev) => ({ ...prev, incidents: [...remote, ...INITIAL_INCIDENTS] }));
+        })
+      );
+    } catch {
+      // ignore
+    }
+
+    // 5. Admin-only: Real-time Pending Staff Approvals from users collection
+    if (currentUser.isAdmin) {
+      try {
+        const qUsers = collection(db, 'users');
+        unsubs.push(
+          onSnapshot(qUsers, (snap) => {
+            const pending = snap.docs
+              .map((d) => ({ id: d.id, ...d.data() }))
+              .filter((u) => !u.isAdmin && !u.approved && !u.rejected)
+              .sort((a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0));
+            setState((prev) => ({
+              ...prev,
+              pendingApprovals: pending,
+              pendingApprovalsCountBase: 0,
+            }));
+          })
+        );
+      } catch {
+        // ignore
+      }
+    }
+
+    return () => unsubs.forEach((fn) => fn && fn());
+  }, [currentUser?.uid, currentUser?.approved, currentUser?.isAdmin]);
 
   const notify = (message, tone = 'success') => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -90,7 +309,104 @@ export function AppStateProvider({ children }) {
     }, 3400);
   };
 
-  const approveUser = (id) => {
+  // ================= FIREBASE AUTH ACTIONS =================
+  const firebaseLogin = async (identifier, password) => {
+    if (!auth) throw new Error('Firebase is not configured yet.');
+    setAuthError('');
+    try {
+      const email = normalizeIdentifierToEmail(identifier);
+      await signInWithEmailAndPassword(auth, email, password);
+      notify('Signed in successfully to LOCO Secure Portal');
+    } catch (err) {
+      const msg = friendlyAuthError(err);
+      setAuthError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  const firebaseRegister = async ({
+    identifier,
+    password,
+    name,
+    employeeId,
+    role,
+    division,
+    lobby,
+    station,
+    verifiedInBspList,
+  }) => {
+    if (!auth || !db) throw new Error('Firebase is not configured yet.');
+    setAuthError('');
+    try {
+      const email = normalizeIdentifierToEmail(identifier);
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const adminFlag = isAdminEmail(email);
+      const digits = String(identifier).replace(/\D/g, '');
+      const profile = {
+        uid: cred.user.uid,
+        email,
+        phone: digits.length >= 10 ? digits.slice(-10) : identifier,
+        name: name || 'LOCO Staff',
+        employeeId: employeeId || 'CRW-NEW',
+        role: adminFlag ? 'Admin' : role || 'Loco Pilot',
+        division: division || 'Bilaspur',
+        lobby: lobby || 'Bilaspur (BSP)',
+        station: station || 'BSP',
+        district: division || 'Bilaspur',
+        verifiedInBspList: Boolean(verifiedInBspList),
+        isAdmin: adminFlag,
+        approved: adminFlag,
+        canDownload: adminFlag,
+        rejected: false,
+        avatarVariant: 'officer-male-1',
+        requestedAt: new Date().toLocaleString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        createdAtMs: Date.now(),
+        createdAt: serverTimestamp(),
+      };
+      await setDoc(doc(db, 'users', cred.user.uid), profile);
+      notify(
+        adminFlag
+          ? 'Admin account created & active!'
+          : 'Registration sent to Admin Control Center for approval',
+        'info'
+      );
+    } catch (err) {
+      const msg = friendlyAuthError(err);
+      setAuthError(msg);
+      throw new Error(msg);
+    }
+  };
+
+  const firebaseLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    setCurrentUser(null);
+    notify('Signed out safely', 'info');
+  };
+
+  // ================= ADMIN & CREW ACTIONS (SYNCED TO FIRESTORE WHEN LIVE) =================
+  const approveUser = async (id) => {
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await updateDoc(doc(db, 'users', id), {
+          approved: true,
+          canDownload: true,
+          rejected: false,
+          approvedAt: serverTimestamp(),
+        });
+        notify('User approved live — their LOCO app is now unlocked!');
+        return;
+      } catch (err) {
+        notify(`Approval failed: ${err.message}`, 'warning');
+        return;
+      }
+    }
+
     setState((prev) => {
       const target = prev.pendingApprovals.find((u) => u.id === id);
       if (!target) return prev;
@@ -129,7 +445,22 @@ export function AppStateProvider({ children }) {
     notify('User approved and synced to LOCO Crew Directory');
   };
 
-  const rejectUser = (id) => {
+  const rejectUser = async (id) => {
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await updateDoc(doc(db, 'users', id), {
+          approved: false,
+          canDownload: false,
+          rejected: true,
+        });
+        notify('Access request rejected & locked', 'info');
+        return;
+      } catch (err) {
+        notify(`Reject failed: ${err.message}`, 'warning');
+        return;
+      }
+    }
+
     setState((prev) => {
       const target = prev.pendingApprovals.find((u) => u.id === id);
       if (!target) return prev;
@@ -175,7 +506,7 @@ export function AppStateProvider({ children }) {
     notify(`Registration submitted for ${user.name} — waiting for Admin approval`, 'info');
   };
 
-  const addContact = (contact) => {
+  const addContact = async (contact) => {
     const lobbyLabel = contact.lobby || 'Bilaspur (BSP)';
     const codeMatch = lobbyLabel.match(/\(([^)]+)\)/);
     const stationCode = (contact.station || (codeMatch ? codeMatch[1] : 'BSP')).trim().toUpperCase();
@@ -193,7 +524,19 @@ export function AppStateProvider({ children }) {
       shift: contact.shift || '08:00 – 16:00',
       photo: contact.photo || null,
       avatarVariant: contact.avatarVariant || 'officer-male-1',
+      createdAtMs: Date.now(),
     };
+
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await setDoc(doc(db, 'contacts', newContact.id), newContact);
+        notify(`${newContact.name} synced live to all LOCO devices`);
+        return;
+      } catch (err) {
+        notify(`Cloud save failed: ${err.message}`, 'warning');
+      }
+    }
+
     setState((prev) => ({
       ...prev,
       contacts: [newContact, ...prev.contacts],
@@ -211,7 +554,16 @@ export function AppStateProvider({ children }) {
     notify(`${newContact.name} saved to LOCO Crew Directory`);
   };
 
-  const updateContact = (id, patch) => {
+  const updateContact = async (id, patch) => {
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await setDoc(doc(db, 'contacts', id), { ...patch, id, createdAtMs: Date.now() }, { merge: true });
+        notify('Contact synced live to all devices');
+        return;
+      } catch {
+        // fall through to local update
+      }
+    }
     setState((prev) => ({
       ...prev,
       contacts: prev.contacts.map((c) => (c.id === id ? { ...c, ...patch } : c)),
@@ -219,7 +571,14 @@ export function AppStateProvider({ children }) {
     notify('Contact details updated');
   };
 
-  const deleteContact = (id) => {
+  const deleteContact = async (id) => {
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await deleteDoc(doc(db, 'contacts', id));
+      } catch {
+        // ignore if built-in static record
+      }
+    }
     setState((prev) => ({
       ...prev,
       contacts: prev.contacts.filter((c) => c.id !== id),
@@ -227,19 +586,32 @@ export function AppStateProvider({ children }) {
     notify('Contact removed from directory', 'info');
   };
 
-  const addNotice = (notice) => {
+  const addNotice = async (notice) => {
+    const nowLabel = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
     const item = {
       id: `not-${Date.now()}`,
       title: notice.title.trim(),
       body: notice.body.trim(),
       category: notice.category || 'Operations',
       priority: Boolean(notice.priority),
-      date: '04 Feb 2025',
+      date: nowLabel,
       timeLabel: 'Just now',
-      author: notice.author || 'Admin Control Center',
+      author: notice.author || currentUser?.name || 'Admin Control Center',
       attachmentName: notice.attachmentName || null,
       attachmentUrl: notice.attachmentUrl || null,
+      createdAtMs: Date.now(),
     };
+
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await addDoc(collection(db, 'notices'), item);
+        notify(`Notice "${item.title}" broadcast LIVE to all approved crew phones!`);
+        return;
+      } catch (err) {
+        notify(`Notice cloud publish failed: ${err.message}`, 'warning');
+      }
+    }
+
     setState((prev) => ({
       ...prev,
       notices: [item, ...prev.notices],
@@ -257,7 +629,14 @@ export function AppStateProvider({ children }) {
     notify(`Notice "${item.title}" published live to all crew devices`);
   };
 
-  const deleteNotice = (id) => {
+  const deleteNotice = async (id) => {
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await deleteDoc(doc(db, 'notices', id));
+      } catch {
+        // ignore
+      }
+    }
     setState((prev) => ({
       ...prev,
       notices: prev.notices.filter((n) => n.id !== id),
@@ -265,25 +644,54 @@ export function AppStateProvider({ children }) {
     notify('Notice removed', 'info');
   };
 
-  const uploadDocument = (doc) => {
-    const ext = (doc.fileName || '').split('.').pop()?.toUpperCase() || 'PDF';
+  const uploadDocument = async (docInput) => {
+    const ext = (docInput.fileName || '').split('.').pop()?.toUpperCase() || 'PDF';
     const isImage = ['JPG', 'JPEG', 'PNG', 'WEBP', 'GIF'].includes(ext);
-    const type = isImage ? 'IMG' : ext === 'DOCX' || ext === 'DOC' ? 'DOC' : 'PDF';
+    const hasLink = Boolean(docInput.externalUrl?.trim());
+    const type = hasLink && !docInput.rawFile ? 'DRV' : isImage ? 'IMG' : ext === 'DOCX' || ext === 'DOC' ? 'DOC' : 'PDF';
+
+    let finalExternalUrl = docInput.externalUrl?.trim() || null;
+
+    // Upload real file to Firebase Storage when Firebase is active
+    if (isFirebaseConfigured && storage && docInput.rawFile && currentUser?.isAdmin) {
+      try {
+        const safeName = `${Date.now()}_${docInput.rawFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const storageRef = ref(storage, `documents/${safeName}`);
+        await uploadBytes(storageRef, docInput.rawFile);
+        finalExternalUrl = await getDownloadURL(storageRef);
+      } catch {
+        // If Storage isn't enabled on Spark plan, still save metadata/link cleanly
+      }
+    }
+
     const item = {
       id: `doc-${Date.now()}`,
-      fileName: doc.fileName || 'Circular_Update.pdf',
-      description: doc.description || doc.fileName,
-      category: doc.category || (isImage ? 'Photos' : 'Circulars'),
+      fileName: docInput.fileName || (hasLink ? 'Official Railway Circular Link' : 'Circular_Update.pdf'),
+      description: docInput.description || docInput.fileName || 'Official Railway Document',
+      category: docInput.category || (isImage ? 'Photos' : 'Circulars'),
       type,
-      size: doc.size || '1.4 MB',
-      uploader: doc.uploader || 'Admin',
-      uploaderFull: doc.uploaderFull || 'Admin Control Center',
+      size: docInput.size || (hasLink ? 'Cloud Link' : '1.4 MB'),
+      uploader: docInput.uploader || currentUser?.name || 'Admin',
+      uploaderFull: docInput.uploaderFull || 'Admin Control Center',
       status: 'Shared',
       date: 'Just now',
-      previewType: isImage ? 'image' : type === 'DOC' ? 'doc' : 'pdf',
-      dataUrl: doc.dataUrl || null,
-      summary: doc.description || 'Official document shared via LOCO Document Vault.',
+      previewType: hasLink && !isImage ? 'drive' : isImage ? 'image' : type === 'DOC' ? 'doc' : 'pdf',
+      dataUrl: finalExternalUrl ? null : docInput.dataUrl || null,
+      externalUrl: finalExternalUrl,
+      summary: docInput.description || 'Official document shared via LOCO Document Vault.',
+      createdAtMs: Date.now(),
     };
+
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await addDoc(collection(db, 'documents'), item);
+        notify(`"${item.fileName}" synced LIVE to all approved crew devices!`);
+        return;
+      } catch (err) {
+        notify(`Cloud upload failed: ${err.message}`, 'warning');
+      }
+    }
+
     setState((prev) => ({
       ...prev,
       documents: [item, ...prev.documents],
@@ -301,7 +709,14 @@ export function AppStateProvider({ children }) {
     notify(`"${item.fileName}" uploaded to LOCO Document Vault`);
   };
 
-  const deleteDocument = (id) => {
+  const deleteDocument = async (id) => {
+    if (isFirebaseConfigured && db && currentUser?.isAdmin) {
+      try {
+        await deleteDoc(doc(db, 'documents', id));
+      } catch {
+        // ignore
+      }
+    }
     setState((prev) => ({
       ...prev,
       documents: prev.documents.filter((d) => d.id !== id),
@@ -309,18 +724,30 @@ export function AppStateProvider({ children }) {
     notify('Document deleted', 'info');
   };
 
-  const reportIncident = (incident) => {
+  const reportIncident = async (incident) => {
     const item = {
       id: `inc-${Date.now()}`,
       title: incident.title.trim(),
       station: incident.station.trim() || 'BSP – Bilaspur',
-      reportedBy: incident.reportedBy || 'On-Duty Crew',
+      reportedBy: incident.reportedBy || currentUser?.name || 'On-Duty Crew',
       severity: incident.severity || 'High',
       status: 'Under Review',
       time: 'Just now',
       notes: incident.notes.trim(),
       photo: incident.photo || null,
+      createdAtMs: Date.now(),
     };
+
+    if (isFirebaseConfigured && db && currentUser) {
+      try {
+        await addDoc(collection(db, 'incidents'), item);
+        notify('Incident logged LIVE to Admin Control Center!', 'warning');
+        return;
+      } catch {
+        // fall through to local
+      }
+    }
+
     setState((prev) => ({
       ...prev,
       incidents: [item, ...prev.incidents],
@@ -339,12 +766,14 @@ export function AppStateProvider({ children }) {
   };
 
   const exportReportCsv = () => {
-    const headers = ['Name', 'Role', 'Station', 'District', 'Division', 'Phone', 'Status'];
+    const headers = ['Crew ID', 'Name', 'Role', 'Designation', 'Station', 'Lobby', 'Division', 'Phone', 'Status'];
     const rows = state.contacts.map((c) => [
+      c.employeeId || '',
       c.name,
       c.role,
+      c.designation || c.role,
       c.station,
-      c.district,
+      c.lobby || '',
       c.division,
       c.phone,
       c.status,
@@ -376,7 +805,6 @@ export function AppStateProvider({ children }) {
   };
 
   const toggleLang = () => setLang(state.lang === 'hi' ? 'en' : 'hi');
-
   const t = (key) => TRANSLATIONS[state.lang || 'en']?.[key] || TRANSLATIONS.en[key] || key;
 
   const toggleDriverGps = () => {
@@ -428,6 +856,13 @@ export function AppStateProvider({ children }) {
     <AppStateContext.Provider
       value={{
         ...state,
+        isFirebaseConfigured,
+        currentUser,
+        authLoading,
+        authError,
+        firebaseLogin,
+        firebaseRegister,
+        firebaseLogout,
         lang: state.lang || 'en',
         themeTemplate: state.themeTemplate || 'executive',
         setThemeTemplate,

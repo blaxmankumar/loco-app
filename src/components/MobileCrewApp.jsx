@@ -39,6 +39,7 @@ import ImportantNumbersPanel from './ImportantNumbersPanel';
 export default function MobileCrewApp({
   framed = true,
   initialTab = 'dashboard',
+  onSwitchToAdmin = null,
   onOpenContactModal,
   onOpenUploadModal,
   onOpenIncidentModal,
@@ -47,6 +48,9 @@ export default function MobileCrewApp({
   onOpenAuth,
 }) {
   const {
+    isFirebaseConfigured,
+    currentUser,
+    firebaseLogout,
     contacts,
     notices,
     documents,
@@ -824,12 +828,17 @@ export default function MobileCrewApp({
           <div>
             <div className="mobile-wave-header text-white px-4 pt-4 pb-7 relative">
               <div className="flex items-center gap-3">
-                <OfficerAvatar name="Rajeshwar Patel" variant="officer-male-1" size={62} ring />
+                <OfficerAvatar name={currentUser?.name || 'Rajeshwar Patel'} variant="officer-male-1" size={62} ring />
                 <div>
-                  <h2 className="text-lg font-extrabold">Rajeshwar Patel</h2>
-                  <p className="text-xs text-blue-200">Loco Pilot · Bilaspur Lobby (BSP)</p>
+                  <h2 className="text-lg font-extrabold">{currentUser?.name || 'Rajeshwar Patel'}</h2>
+                  <p className="text-xs text-blue-200">
+                    {currentUser?.role || 'Loco Pilot'} · {currentUser?.lobby || 'Bilaspur Lobby (BSP)'}
+                  </p>
                   <span className="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-full bg-[#F3D27A] text-[#0E2347] text-[10px] font-extrabold">
-                    <Check className="w-3 h-3 stroke-[3]" /> Approved Crew · ID LP-10821
+                    <Check className="w-3 h-3 stroke-[3]" />{' '}
+                    {currentUser?.isAdmin
+                      ? 'System Admin · Full Control'
+                      : `Approved Crew · ID ${currentUser?.employeeId || 'LP-10821'}`}
                   </span>
                 </div>
               </div>
@@ -840,6 +849,14 @@ export default function MobileCrewApp({
             </div>
 
             <div className="px-3.5 pt-2 space-y-3">
+              {onSwitchToAdmin && (
+                <button
+                  onClick={onSwitchToAdmin}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#D4A13B] to-[#F3D27A] text-[#0E2347] text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Open Admin Control Center (Approve Crew &amp; Upload)
+                </button>
+              )}
               {/* Driver Live GPS Control Card */}
               <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-card space-y-2.5">
                 <div className="flex items-center justify-between">
@@ -889,10 +906,13 @@ export default function MobileCrewApp({
               <ImportantNumbersPanel compact />
 
               <button
-                onClick={onOpenAuth}
+                onClick={isFirebaseConfigured && currentUser ? firebaseLogout : onOpenAuth}
                 className="w-full py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold text-[#0E2347] flex items-center justify-center gap-2 hover:bg-slate-50"
               >
-                <LogOut className="w-4 h-4 text-red-500" /> Preview Login / Staff Registration
+                <LogOut className="w-4 h-4 text-red-500" />
+                {isFirebaseConfigured && currentUser
+                  ? 'Sign Out of LOCO Account'
+                  : 'Preview Login / Staff Registration'}
               </button>
             </div>
           </div>

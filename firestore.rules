@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        userDoc().isAdmin == true
+      );
+    }
+
+    function isApproved() {
+      return isSignedIn() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         userDoc().approved == true)
+      );
+    }
+
+    // Staff profiles & approval status
+    match /users/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      // New crew registration: CANNOT self-approve or grant themselves admin!
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.approved == false
+        && request.resource.data.isAdmin == false;
+      // Only Admin can approve/reject/revoke users or change permissions
+      allow update, delete: if isAdmin();
+    }
+
+    // Official Notices — only Approved crew & Admins can read; only Admin can write
+    match /notices/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // Official Documents & Circulars — only Approved crew can read/download; only Admin can upload/delete
+    match /documents/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // Crew Directory custom additions / photo updates
+    match /contacts/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // Operational Alerts
+    match /alerts/{id} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // Crew Incident Reports — Approved crew can submit, Admin can review/manage
+    match /incidents/{id} {
+      allow read: if isApproved();
+      allow create: if isApproved();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

@@ -4,13 +4,16 @@ import {
   Columns2,
   Languages,
   Lock,
+  LogOut,
   Monitor,
   Palette,
+  ShieldCheck,
   Smartphone,
   Sparkles,
 } from 'lucide-react';
 import { AppStateProvider, useAppState } from './context/AppStateContext';
 import AdminPortal from './components/AdminPortal';
+import AuthGateScreen from './components/AuthGateScreen';
 import ExecutiveAdminView from './components/ExecutiveAdminView';
 import MobileCrewApp from './components/MobileCrewApp';
 import { LocoLogo } from './components/BrandAssets';
@@ -25,6 +28,10 @@ import {
 
 function AppWorkspace() {
   const {
+    isFirebaseConfigured,
+    currentUser,
+    authLoading,
+    firebaseLogout,
     addContact,
     updateContact,
     addNotice,
@@ -80,13 +87,24 @@ function AppWorkspace() {
     }
   };
 
-  // Native full-screen Android app mode on mobile phones & Capacitor APK
-  if ((isSmallScreen || isNativeApp) && mode === 'mobile') {
+  // When Firebase live backend is active, enforce Real Login + Admin Approval Gate!
+  if (isFirebaseConfigured && (authLoading || !currentUser || (!currentUser.approved && !currentUser.isAdmin))) {
+    return <AuthGateScreen />;
+  }
+
+  // Strict Role Lock: When Firebase is active, non-admin approved crew ONLY see the Crew App!
+  const isStrictCrewOnly = isFirebaseConfigured && currentUser && !currentUser.isAdmin;
+
+  // Native full-screen Android app mode on mobile phones, Capacitor APK, or strict crew-only users
+  if (isStrictCrewOnly || ((isSmallScreen || isNativeApp) && mode === 'mobile')) {
     return (
       <>
         <MobileCrewApp
           framed={false}
           initialTab={mobileScreenTab}
+          onSwitchToAdmin={
+            isFirebaseConfigured && currentUser?.isAdmin ? () => switchMode('admin') : null
+          }
           onOpenContactModal={(contact) => setContactModalData({ open: true, contact })}
           onOpenUploadModal={() => setUploadModalOpen(true)}
           onOpenIncidentModal={() => setIncidentModalOpen(true)}
@@ -211,13 +229,24 @@ function AppWorkspace() {
             </button>
           </div>
 
-          <button
-            onClick={() => setAuthModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-blue-100 transition"
-          >
-            <Lock className="w-3.5 h-3.5 text-[#F3D27A]" />
-            {t('loginFlow')}
-          </button>
+          {isFirebaseConfigured && currentUser ? (
+            <button
+              onClick={firebaseLogout}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/35 border border-red-400/30 text-xs font-bold text-red-100 transition"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setAuthModalOpen(true)}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-blue-100 transition"
+            >
+              <Lock className="w-3.5 h-3.5 text-[#F3D27A]" />
+              {t('loginFlow')}
+            </button>
+          )}
         </div>
       </div>
 

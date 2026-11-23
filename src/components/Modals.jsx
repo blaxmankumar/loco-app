@@ -381,7 +381,9 @@ export function NoticeModal({ onSave, onClose }) {
 }
 
 export function UploadDocModal({ onSave, onClose }) {
+  const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [externalUrl, setExternalUrl] = useState('');
   const [category, setCategory] = useState('Circulars');
   const [fileMeta, setFileMeta] = useState(null);
 
@@ -391,19 +393,21 @@ export function UploadDocModal({ onSave, onClose }) {
     const sizeLabel = file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(12, Math.round(file.size / 1024))} KB`;
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onload = () => setFileMeta({ fileName: file.name, size: sizeLabel, dataUrl: reader.result });
+      reader.onload = () => setFileMeta({ fileName: file.name, size: sizeLabel, dataUrl: reader.result, rawFile: file });
       reader.readAsDataURL(file);
     } else {
-      setFileMeta({ fileName: file.name, size: sizeLabel, dataUrl: null });
+      setFileMeta({ fileName: file.name, size: sizeLabel, dataUrl: null, rawFile: file });
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSave({
-      fileName: fileMeta?.fileName || `LOCO_Circular_${Math.floor(10 + Math.random() * 89)}.pdf`,
-      size: fileMeta?.size || '1.6 MB',
+      fileName: title.trim() || fileMeta?.fileName || `LOCO_Circular_${Math.floor(10 + Math.random() * 89)}.pdf`,
+      size: fileMeta?.size || (externalUrl.trim() ? 'Cloud Link' : '1.6 MB'),
       dataUrl: fileMeta?.dataUrl || null,
+      rawFile: fileMeta?.rawFile || null,
+      externalUrl: externalUrl.trim() || null,
       description: description || 'Official Railway Operations Circular',
       category,
     });
@@ -413,11 +417,20 @@ export function UploadDocModal({ onSave, onClose }) {
   return (
     <ModalShell
       title="Upload Circular / HRMS Document"
-      subtitle="Share PDF circulars, duty orders, forms or site photos securely"
+      subtitle="Share PDF circulars, duty orders, Google Drive links or site photos live"
       icon={Upload}
       onClose={onClose}
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Document Title (optional)</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Revised Signal Order — Bilaspur"
+            className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#D4A13B]/50"
+          />
+        </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Select File (PDF, Image, DOCX)</label>
           <input
@@ -431,6 +444,16 @@ export function UploadDocModal({ onSave, onClose }) {
               Ready: {fileMeta.fileName} ({fileMeta.size})
             </p>
           )}
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Or Paste Google Drive / PDF Link</label>
+          <input
+            type="url"
+            value={externalUrl}
+            onChange={(e) => setExternalUrl(e.target.value)}
+            placeholder="https://drive.google.com/..."
+            className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#D4A13B]/50"
+          />
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Vault Category</label>

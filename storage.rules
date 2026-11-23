@@ -1,0 +1,29 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function userData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+    function isAdmin() {
+      return isSignedIn() && userData().isAdmin == true;
+    }
+    function isApproved() {
+      return isSignedIn() && (userData().approved == true || userData().isAdmin == true);
+    }
+
+    // Official Documents & Circulars Vault
+    match /documents/{allPaths=**} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // Crew Contact Profile Photos
+    match /contact_photos/{allPaths=**} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+  }
+}
