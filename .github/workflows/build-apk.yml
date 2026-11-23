@@ -36,7 +36,16 @@ jobs:
 
       - name: Configure Android Gradle, GPS permissions & LOCO launcher icon
         run: |
-          # 1. Fix Kotlin stdlib duplicate class conflict (kotlin-stdlib 1.8.22 vs jdk7/jdk8 1.6.21)
+          # 1. Auto-bump Android versionCode & versionName + fix Kotlin stdlib duplicate class conflict
+          node --input-type=commonjs -e '
+            const fs = require("fs");
+            const p = "android/app/build.gradle";
+            let g = fs.readFileSync(p, "utf8");
+            const runNum = Math.max(2, parseInt(process.env.GITHUB_RUN_NUMBER || "2", 10));
+            g = g.replace(/versionCode\s+\d+/, "versionCode " + runNum);
+            g = g.replace(/versionName\s+"[^"]+"/, "versionName \"2." + runNum + "\"");
+            fs.writeFileSync(p, g, "utf8");
+          '
           cat << 'EOF' >> android/app/build.gradle
 
           dependencies {

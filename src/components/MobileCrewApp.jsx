@@ -287,7 +287,7 @@ export default function MobileCrewApp({
                       >
                         <span
                           className={`w-7 h-7 rounded-md text-[8px] font-extrabold text-white flex items-center justify-center shrink-0 ${
-                            d.type === 'PDF' ? 'bg-red-600' : 'bg-sky-500'
+                            d.type === 'DRV' ? 'bg-emerald-600' : d.type === 'PDF' ? 'bg-red-600' : 'bg-sky-500'
                           }`}
                         >
                           {d.type}
@@ -636,6 +636,26 @@ export default function MobileCrewApp({
                   </button>
                 </div>
 
+                {/* Official SECR Google Drive Quick Banner */}
+                <a
+                  href={OFFICIAL_DRIVE_DOCS_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gradient-to-r from-[#0E2347] to-[#17366B] text-white border border-[#D4A13B]/45"
+                >
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-extrabold text-[#F3D27A] truncate">
+                      SECR Official Google Drive Library
+                    </p>
+                    <p className="text-[9.5px] text-blue-200/85 truncate">
+                      All Official Folders, Circulars &amp; Manuals
+                    </p>
+                  </div>
+                  <span className="px-2 py-1 rounded-lg bg-[#F3D27A] text-[#0E2347] text-[10px] font-extrabold inline-flex items-center gap-1 shrink-0">
+                    Open <ExternalLink className="w-3 h-3" />
+                  </span>
+                </a>
+
                 {/* Category Chips */}
                 <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
                   {['Circulars', 'Safety', 'Duty Orders', 'Forms', 'Photos'].map((cat) => (
@@ -670,7 +690,11 @@ export default function MobileCrewApp({
                           )}
                         </div>
                       ) : (
-                        <div className="w-10 h-11 rounded-lg bg-red-600 text-white font-extrabold text-[10px] flex items-center justify-center shrink-0">
+                        <div
+                          className={`w-10 h-11 rounded-lg text-white font-extrabold text-[10px] flex items-center justify-center shrink-0 ${
+                            d.type === 'DRV' ? 'bg-emerald-600' : 'bg-red-600'
+                          }`}
+                        >
                           {d.type}
                         </div>
                       )}
